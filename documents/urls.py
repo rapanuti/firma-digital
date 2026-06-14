@@ -11,4 +11,6 @@ urlpatterns = [
     path("subir/", views.DocumentCreateView.as_view(), name="upload"),
     path("<int:pk>/", views.DocumentDetailView.as_view(), name="detail"),
     path("<int:pk>/original/", views.download_original, name="download_original"),
+    path("<int:pk>/ubicar/", views.placement_view, name="place"),
+    path("<int:pk>/ubicacion/", views.placement_api, name="placement_api"),
 ]

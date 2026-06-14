@@ -15,6 +15,17 @@ def _media_temporal(settings, tmp_path):
     settings.MEDIA_ROOT = tmp_path / "media"
 
 
+@pytest.fixture(autouse=True)
+def _static_simple(settings):
+    """Usa un storage de estáticos sin manifest en tests (sin collectstatic)."""
+    settings.STORAGES = {
+        **settings.STORAGES,
+        "staticfiles": {
+            "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"
+        },
+    }
+
+
 @pytest.fixture
 def firmante(db):
     from accounts.models import User

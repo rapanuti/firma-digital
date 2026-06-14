@@ -39,6 +39,16 @@ class Document(models.Model):
         default=Status.PENDING,
         db_index=True,
     )
+
+    # Ubicación de firma (borrador). Normalizado 0..1, origen arriba-izquierda,
+    # respecto del recuadro visible de la página. Se resuelve a puntos al firmar.
+    placement_page = models.PositiveIntegerField(null=True, blank=True)
+    placement_x = models.FloatField(null=True, blank=True)
+    placement_y = models.FloatField(null=True, blank=True)
+    placement_w = models.FloatField(null=True, blank=True)
+    placement_h = models.FloatField(null=True, blank=True)
+    placement_rotation = models.IntegerField(default=0)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -49,3 +59,13 @@ class Document(models.Model):
 
     def __str__(self):
         return self.title
+
+    @property
+    def has_placement(self) -> bool:
+        return None not in (
+            self.placement_page,
+            self.placement_x,
+            self.placement_y,
+            self.placement_w,
+            self.placement_h,
+        )

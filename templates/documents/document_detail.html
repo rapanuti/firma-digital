@@ -38,9 +38,15 @@
         <a href="{% url 'documents:download_original' documento.pk %}"
            class="rounded-md border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">Descargar original</a>
         {% if documento.status == 'pending' %}
-            <span class="rounded-md border border-dashed border-slate-300 px-4 py-2 text-sm text-slate-400">
-                Ubicar y firmar · próximamente (Fase 4)
-            </span>
+            <a href="{% url 'documents:place' documento.pk %}"
+               class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                Ubicar firma
+            </a>
+            {% if documento.has_placement %}
+                <span class="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+                    Posición guardada (pág. {{ documento.placement_page }})
+                </span>
+            {% endif %}
         {% endif %}
     </div>
 </div>

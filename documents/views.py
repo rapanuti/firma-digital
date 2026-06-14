@@ -1,13 +1,19 @@
-"""Vistas de documentos: listado, detalle, subida y descarga protegida."""
+"""Vistas de documentos: listado, detalle, subida, descarga y ubicación de firma."""
+
+import json
 
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
-from django.http import FileResponse
-from django.shortcuts import get_object_or_404
+from django.http import FileResponse, HttpResponseBadRequest, JsonResponse
+from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DetailView, ListView
+
+from accounts.models import SignatureProfile
 
 from .forms import DocumentUploadForm
 from .models import Document
@@ -69,3 +75,72 @@ def download_original(request, pk):
         filename=f"{doc.title}.pdf",
         content_type="application/pdf",
     )
+
+
+# --- Ubicación visual de la firma (Fase 4) -------------------------------
+
+
+@ensure_csrf_cookie
+@login_required
+def placement_view(request, pk):
+    """Página con el visor PDF.js para ubicar el bloque de firma."""
+    doc = _get_document_or_403(request, pk)
+    if doc.status != Document.Status.PENDING:
+        messages.info(request, "Este documento ya no está pendiente de firma.")
+        return redirect("documents:detail", pk=doc.pk)
+
+    profile = SignatureProfile.objects.filter(user=request.user, is_active=True).first()
+    if not profile or not profile.can_sign:
+        messages.warning(
+            request, "Primero configura tu firma (imagen manuscrita y datos)."
+        )
+        return redirect("accounts:signature_profile_edit")
+
+    context = {
+        "documento": doc,
+        "perfil": profile,
+        "pdf_url": reverse("documents:download_original", args=[doc.pk]),
+        "signature_image_url": profile.signature_image.url,
+    }
+    return render(request, "documents/document_place.html", context)
+
+
+@login_required
+@require_POST
+def placement_api(request, pk):
+    """Guarda la posición normalizada del bloque de firma (JSON)."""
+    doc = _get_document_or_403(request, pk)
+    if doc.status != Document.Status.PENDING:
+        return HttpResponseBadRequest("El documento no está pendiente.")
+
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+        page = int(data["page"])
+        fx, fy = float(data["fx"]), float(data["fy"])
+        fw, fh = float(data["fw"]), float(data["fh"])
+        rotation = int(data.get("rotation", 0))
+    except (KeyError, ValueError, TypeError, json.JSONDecodeError):
+        return HttpResponseBadRequest("Datos inválidos.")
+
+    if not (1 <= page <= (doc.page_count or 1)):
+        return HttpResponseBadRequest("Página fuera de rango.")
+    if any(not (0.0 <= v <= 1.0) for v in (fx, fy, fw, fh)):
+        return HttpResponseBadRequest("Coordenadas fuera de rango.")
+    if fw <= 0 or fh <= 0:
+        return HttpResponseBadRequest("Tamaño inválido.")
+    if fx + fw > 1.0001 or fy + fh > 1.0001:
+        return HttpResponseBadRequest("El bloque se sale de la página.")
+    if rotation not in (0, 90, 180, 270):
+        rotation = 0
+
+    doc.placement_page = page
+    doc.placement_x, doc.placement_y = fx, fy
+    doc.placement_w, doc.placement_h = fw, fh
+    doc.placement_rotation = rotation
+    doc.save(
+        update_fields=[
+            "placement_page", "placement_x", "placement_y",
+            "placement_w", "placement_h", "placement_rotation", "updated_at",
+        ]
+    )
+    return JsonResponse({"ok": True})
