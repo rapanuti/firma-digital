@@ -1,0 +1,17 @@
+# --- Core ---
+Django>=5.2,<5.3            # LTS, soportado en Python 3.12
+django-environ>=0.11        # configuración por variables de entorno (.env)
+psycopg[binary]>=3.2        # driver PostgreSQL (psycopg 3)
+
+# --- Manipulación de PDF e imágenes (sello de firma) ---
+PyMuPDF>=1.24               # motor de estampado (origen top-left, maneja rotación)
+Pillow>=10.4                # validación/manejo de imágenes (firma manuscrita PNG)
+qrcode[pil]>=7.4            # generación de códigos QR de verificación
+
+# --- Testing ---
+pytest>=8.2
+pytest-django>=4.8
+
+# --- Producción (se usan en despliegue) ---
+gunicorn>=22.0
+whitenoise>=6.7
