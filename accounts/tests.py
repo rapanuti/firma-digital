@@ -120,3 +120,64 @@ def test_user_list_admin_ok(client, administrador):
     resp = client.get(reverse("accounts:user_list"))
     assert resp.status_code == 200
     assert b"root" in resp.content
+
+
+# --- Perfil de firma (Fase 2) -------------------------------------------
+
+from accounts.models import SignatureProfile  # noqa: E402
+
+
+def test_signature_profile_requiere_login(client, db):
+    resp = client.get(reverse("accounts:signature_profile"))
+    assert resp.status_code == 302
+    assert reverse("accounts:login") in resp.url
+
+
+def test_crear_signature_profile(client, firmante, png_firma):
+    client.login(username="ana", password=PASSWORD)
+    resp = client.post(
+        reverse("accounts:signature_profile_edit"),
+        {
+            "full_name": "Ana Pérez",
+            "id_document": "V-12345678",
+            "email": "ana.firma@example.com",
+            "signature_image": png_firma,
+            "title": "Analista",
+            "is_active": "on",
+        },
+    )
+    assert resp.status_code == 302
+    profile = SignatureProfile.objects.get(user=firmante)
+    assert profile.full_name == "Ana Pérez"
+    assert profile.can_sign is True
+
+
+def test_signature_image_rechaza_no_imagen(client, firmante):
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    client.login(username="ana", password=PASSWORD)
+    fake = SimpleUploadedFile("firma.png", b"esto no es una imagen", content_type="image/png")
+    resp = client.post(
+        reverse("accounts:signature_profile_edit"),
+        {
+            "full_name": "Ana",
+            "id_document": "V-1",
+            "email": "a@e.com",
+            "signature_image": fake,
+            "is_active": "on",
+        },
+    )
+    assert resp.status_code == 200  # form inválido
+    assert not SignatureProfile.objects.filter(user=firmante).exists()
+
+
+def test_signature_profile_inactiva_no_firma(db, firmante, png_firma):
+    profile = SignatureProfile.objects.create(
+        user=firmante,
+        full_name="Ana",
+        id_document="V-1",
+        email="a@e.com",
+        signature_image=png_firma,
+        is_active=False,
+    )
+    assert profile.can_sign is False

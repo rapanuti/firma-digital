@@ -3,7 +3,7 @@
 from django import forms
 from django.contrib.auth.forms import AuthenticationForm
 
-from .models import User
+from .models import SignatureProfile, User
 
 # Clases Tailwind reutilizables para inputs (estilo sobrio y profesional).
 INPUT_CLASSES = (
@@ -43,3 +43,34 @@ class ProfileForm(forms.ModelForm):
         if existe:
             raise forms.ValidationError("Ya existe un usuario con este correo.")
         return email
+
+
+class SignatureProfileForm(forms.ModelForm):
+    """Configuración del perfil de firma del usuario."""
+
+    class Meta:
+        model = SignatureProfile
+        fields = [
+            "full_name",
+            "id_document",
+            "email",
+            "signature_image",
+            "title",
+            "is_active",
+        ]
+        widgets = {
+            "full_name": forms.TextInput(attrs={"class": INPUT_CLASSES}),
+            "id_document": forms.TextInput(
+                attrs={"class": INPUT_CLASSES, "placeholder": "V-12345678"}
+            ),
+            "email": forms.EmailInput(attrs={"class": INPUT_CLASSES}),
+            "signature_image": forms.ClearableFileInput(
+                attrs={"class": "block w-full text-sm", "accept": "image/png,image/jpeg"}
+            ),
+            "title": forms.TextInput(
+                attrs={"class": INPUT_CLASSES, "placeholder": "Cargo (opcional)"}
+            ),
+            "is_active": forms.CheckboxInput(
+                attrs={"class": "h-4 w-4 rounded border-slate-300"}
+            ),
+        }
