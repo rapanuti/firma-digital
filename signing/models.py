@@ -38,6 +38,7 @@ class Signature(models.Model):
     width = models.FloatField()
     height = models.FloatField()
     page_rotation = models.IntegerField(default=0)
+    qr_mode = models.CharField(max_length=4, default="url")  # "url" o "data"
 
     # Archivos e integridad.
     signed_file = models.FileField(upload_to=signed_pdf_path)

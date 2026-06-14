@@ -91,6 +91,25 @@ def test_pdf_firmado_contiene_sello(db, firmante, png_firma, pdf_carta_bytes):
         pdf.close()
 
 
+def test_qr_content_segun_modo():
+    from documents.models import Document
+    from signing.services import _qr_content
+
+    kw = dict(url="http://x/verificar/ABC", name="Ana Pérez", ci="V-1",
+              fecha="14/06/2026 10:00", code="ABC", original_sha256="deadbeef")
+    data = _qr_content(Document.QrMode.DATA, **kw)
+    assert "Ana Pérez" in data and "ABC" in data and "deadbeef" in data
+    assert _qr_content(Document.QrMode.URL, **kw) == "http://x/verificar/ABC"
+
+
+def test_sign_guarda_qr_mode(db, firmante, png_firma, pdf_carta_bytes):
+    doc = _setup(firmante, png_firma, pdf_carta_bytes)
+    doc.qr_mode = "data"
+    doc.save(update_fields=["qr_mode"])
+    sig = sign_document(doc, firmante)
+    assert sig.qr_mode == "data"
+
+
 def test_codigos_son_unicos(db, firmante, otro, png_firma, pdf_carta_bytes):
     sig1 = sign_document(_setup(firmante, png_firma, pdf_carta_bytes), firmante)
     sig2 = sign_document(_setup(otro, png_firma, pdf_carta_bytes), otro)

@@ -21,6 +21,10 @@ class Document(models.Model):
         SIGNED = "signed", "Firmado"
         VOIDED = "voided", "Anulado"
 
+    class QrMode(models.TextChoices):
+        URL = "url", "URL de verificación"
+        DATA = "data", "Datos de la firma (offline)"
+
     owner = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
@@ -48,6 +52,9 @@ class Document(models.Model):
     placement_w = models.FloatField(null=True, blank=True)
     placement_h = models.FloatField(null=True, blank=True)
     placement_rotation = models.IntegerField(default=0)
+    qr_mode = models.CharField(
+        max_length=4, choices=QrMode.choices, default=QrMode.URL
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
