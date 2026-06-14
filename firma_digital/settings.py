@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     # Apps del proyecto
     "accounts",
     "documents",
+    "signing",
 ]
 
 MIDDLEWARE = [

@@ -39,14 +39,24 @@
            class="rounded-md border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">Descargar original</a>
         {% if documento.status == 'pending' %}
             <a href="{% url 'documents:place' documento.pk %}"
-               class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+               class="rounded-md border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">
                 Ubicar firma
             </a>
             {% if documento.has_placement %}
-                <span class="inline-flex items-center gap-1 rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
-                    Posición guardada (pág. {{ documento.placement_page }})
-                </span>
+                <a href="{% url 'signing:sign' documento.pk %}"
+                   class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                    Firmar documento
+                </a>
             {% endif %}
+        {% elif documento.status == 'signed' %}
+            {% with firma=documento.signatures.first %}
+                {% if firma %}
+                    <a href="{% url 'signing:result' firma.pk %}"
+                       class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                        Ver firma
+                    </a>
+                {% endif %}
+            {% endwith %}
         {% endif %}
     </div>
 </div>

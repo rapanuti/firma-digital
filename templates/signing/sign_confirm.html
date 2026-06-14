@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+
+{% block title %}Confirmar firma · {{ documento.title }}{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-xl">
+    <a href="{% url 'documents:place' documento.pk %}" class="text-sm text-slate-500 hover:underline">← Ajustar ubicación</a>
+    <h1 class="mt-1 text-xl font-semibold text-slate-900">Confirmar firma</h1>
+    <p class="mt-1 text-sm text-slate-500">Revisa antes de generar el PDF firmado. Esta acción es definitiva: una firma emitida no se modifica, solo se anula.</p>
+
+    <div class="mt-6 rounded-xl border border-slate-200 bg-white p-5">
+        <dl class="space-y-2 text-sm">
+            <div class="flex justify-between"><dt class="text-slate-500">Documento</dt><dd class="text-slate-900">{{ documento.title }}</dd></div>
+            <div class="flex justify-between"><dt class="text-slate-500">Página de firma</dt><dd class="text-slate-900">{{ documento.placement_page }}</dd></div>
+            {% if perfil %}
+                <div class="flex justify-between"><dt class="text-slate-500">Firmante</dt><dd class="text-slate-900">{{ perfil.full_name }}</dd></div>
+                <div class="flex justify-between"><dt class="text-slate-500">C.I.</dt><dd class="text-slate-900">{{ perfil.id_document }}</dd></div>
+            {% endif %}
+        </dl>
+    </div>
+
+    <form method="post" class="mt-6">
+        {% csrf_token %}
+        <button type="submit"
+                class="w-full rounded-md bg-brand-600 px-4 py-3 text-sm font-medium text-white hover:bg-brand-700">
+            Generar PDF firmado
+        </button>
+    </form>
+</div>
+{% endblock %}
