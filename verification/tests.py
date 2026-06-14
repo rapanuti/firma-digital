@@ -61,6 +61,7 @@ def test_detail_codigo_valido(client, firmante, png_firma, pdf_carta_bytes):
     assert b"V-****5678" in resp.content       # C.I. enmascarada
     assert b"V-12345678" not in resp.content   # nunca el documento completo
     assert sig.signed_sha256.encode() in resp.content
+    assert sig.original_sha256.encode() in resp.content  # hash del original (cotejable con el sello)
 
 
 def test_detail_codigo_inexistente(client, db):

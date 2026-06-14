@@ -32,6 +32,10 @@
                 <div class="flex justify-between py-2"><dt class="text-slate-500">Código</dt><dd class="text-slate-900 font-mono">{{ signature.verification_code }}</dd></div>
                 {% if show_title %}<div class="flex justify-between py-2"><dt class="text-slate-500">Documento</dt><dd class="text-slate-900">{{ signature.document.title }}</dd></div>{% endif %}
                 <div class="py-2">
+                    <dt class="text-slate-500 mb-1">SHA-256 del documento original</dt>
+                    <dd class="font-mono text-xs break-all text-slate-700">{{ signature.original_sha256 }}</dd>
+                </div>
+                <div class="py-2">
                     <dt class="text-slate-500 mb-1">SHA-256 del documento firmado</dt>
                     <dd class="font-mono text-xs break-all text-slate-700">{{ signature.signed_sha256 }}</dd>
                 </div>
