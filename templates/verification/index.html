@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block title %}Verificar firma · Firma Digital{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl">
+    <div class="text-center">
+        <h1 class="text-2xl font-semibold text-slate-900">Verificación de firma</h1>
+        <p class="mt-2 text-slate-500">Confirma la autenticidad de un documento firmado electrónicamente.</p>
+    </div>
+
+    <div class="mt-8 grid gap-6 sm:grid-cols-2">
+        <!-- Por código -->
+        <div class="rounded-xl border border-slate-200 bg-white p-6">
+            <h2 class="font-medium text-slate-900">Por código</h2>
+            <p class="mt-1 text-sm text-slate-500">Ingresa el código de verificación del sello.</p>
+            <form method="get" action="{% url 'verification:index' %}" class="mt-4 space-y-3">
+                <input type="text" name="codigo" required placeholder="FIRMA-2026-000123-…"
+                       class="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-brand-600 focus:ring-1 focus:ring-brand-600 focus:outline-none">
+                <button type="submit"
+                        class="w-full rounded-md bg-brand-600 px-3 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                    Verificar código
+                </button>
+            </form>
+        </div>
+
+        <!-- Por archivo -->
+        <div class="rounded-xl border border-slate-200 bg-white p-6">
+            <h2 class="font-medium text-slate-900">Por archivo</h2>
+            <p class="mt-1 text-sm text-slate-500">Sube el PDF y comparamos su huella (SHA-256).</p>
+            <form method="post" action="{% url 'verification:verify_by_file' %}" enctype="multipart/form-data" class="mt-4 space-y-3">
+                {% csrf_token %}
+                {{ file_form.archivo }}
+                {% if file_form.archivo.errors %}
+                    <p class="text-sm text-red-600">{{ file_form.archivo.errors|join:" " }}</p>
+                {% endif %}
+                <button type="submit"
+                        class="w-full rounded-md border border-brand-600 px-3 py-2 text-sm font-medium text-brand-700 hover:bg-brand-50">
+                    Verificar archivo
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <p class="mt-6 text-center text-xs text-slate-400">
+        La verificación por archivo es la más fuerte: confirma que el documento no fue alterado tras la firma.
+    </p>
+</div>
+{% endblock %}

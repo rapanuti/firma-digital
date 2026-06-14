@@ -37,6 +37,10 @@ ALLOWED_HOSTS = env("DJANGO_ALLOWED_HOSTS")
 # En producción debe ser el dominio real, p.ej. https://midominio.com
 VERIFICATION_BASE_URL = env("VERIFICATION_BASE_URL", default="http://localhost:8000")
 
+# Si se muestra el nombre del documento en la página pública de verificación.
+# Poner en False si el título pudiera comprometer la privacidad.
+VERIFICATION_SHOW_DOCUMENT_TITLE = env.bool("VERIFICATION_SHOW_DOCUMENT_TITLE", default=True)
+
 # ---------------------------------------------------------------------------
 # Aplicaciones
 # ---------------------------------------------------------------------------
@@ -51,6 +55,7 @@ INSTALLED_APPS = [
     "accounts",
     "documents",
     "signing",
+    "verification",
 ]
 
 MIDDLEWARE = [

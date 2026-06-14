@@ -68,8 +68,9 @@
     </main>
 
     <footer class="border-t border-slate-200 bg-white">
-        <div class="mx-auto max-w-6xl px-4 sm:px-6 py-4 text-xs text-slate-400">
-            Firma Digital · Sistema de firma electrónica verificable
+        <div class="mx-auto max-w-6xl px-4 sm:px-6 py-4 flex items-center justify-between text-xs text-slate-400">
+            <span>Firma Digital · Sistema de firma electrónica verificable</span>
+            <a href="{% url 'verification:index' %}" class="hover:text-slate-600">Verificar un documento</a>
         </div>
     </footer>
     {% block extra_body %}{% endblock %}
