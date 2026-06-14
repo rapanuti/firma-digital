@@ -99,6 +99,8 @@ def test_qr_content_segun_modo():
               fecha="14/06/2026 10:00", code="ABC", original_sha256="deadbeef")
     data = _qr_content(Document.QrMode.DATA, **kw)
     assert "Ana Pérez" in data and "ABC" in data and "deadbeef" in data
+    # En modo datos NO debe haber ninguna URL.
+    assert "http" not in data and "Verificar" not in data
     assert _qr_content(Document.QrMode.URL, **kw) == "http://x/verificar/ABC"
 
 
