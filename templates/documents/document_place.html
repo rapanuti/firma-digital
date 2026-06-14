@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Ubicar firma · {{ documento.title }}{% endblock %}
+
+{% block extra_head %}
+    <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-6xl">
+    <div class="flex items-center justify-between">
+        <div>
+            <a href="{% url 'documents:detail' documento.pk %}" class="text-sm text-slate-500 hover:underline">← {{ documento.title }}</a>
+            <h1 class="mt-1 text-xl font-semibold text-slate-900">Ubicar firma</h1>
+        </div>
+    </div>
+
+    <div class="mt-6 grid gap-6 lg:grid-cols-[1fr_320px]">
+        <!-- Visor -->
+        <div>
+            <div class="flex items-center gap-3 mb-3">
+                <button type="button" id="prev-page" class="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50 disabled:opacity-40">←</button>
+                <span class="text-sm text-slate-600">Página <span id="page-num">1</span> de <span id="page-count">{{ documento.page_count }}</span></span>
+                <button type="button" id="next-page" class="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50 disabled:opacity-40">→</button>
+            </div>
+
+            <div class="rounded-xl border border-slate-200 bg-slate-100 p-4 overflow-auto">
+                <div id="canvas-wrapper" class="relative mx-auto shadow-sm" style="width:fit-content">
+                    <canvas id="pdf-canvas" class="block"></canvas>
+                    <!-- Bloque de firma arrastrable -->
+                    <div id="sign-block"
+                         class="absolute cursor-move border-2 border-dashed border-brand-600 bg-white/70"
+                         style="left:0;top:0;width:120px;height:40px;touch-action:none">
+                        <div class="h-full w-full bg-center bg-no-repeat bg-contain pointer-events-none"
+                             id="sign-block-img"></div>
+                        <div id="resize-handle"
+                             class="absolute -bottom-1.5 -right-1.5 h-3 w-3 cursor-se-resize rounded-sm bg-brand-600"
+                             style="touch-action:none"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel lateral: datos del firmante -->
+        <aside class="space-y-4">
+            <div class="rounded-xl border border-slate-200 bg-white p-4">
+                <h2 class="text-sm font-semibold text-slate-900">Firmante</h2>
+                <dl class="mt-3 space-y-1 text-sm">
+                    <div class="flex justify-between"><dt class="text-slate-500">Nombre</dt><dd class="text-slate-900">{{ perfil.full_name }}</dd></div>
+                    <div class="flex justify-between"><dt class="text-slate-500">C.I.</dt><dd class="text-slate-900">{{ perfil.id_document }}</dd></div>
+                    {% if perfil.title %}<div class="flex justify-between"><dt class="text-slate-500">Cargo</dt><dd class="text-slate-900">{{ perfil.title }}</dd></div>{% endif %}
+                </dl>
+            </div>
+
+            <div class="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-600">
+                <p>Arrastra el bloque sobre la página donde quieres firmar y ajústalo con la esquina inferior derecha.</p>
+            </div>
+
+            <button type="button" id="save-btn"
+                    class="w-full rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
+                Guardar posición
+            </button>
+            <p id="save-status" class="text-sm text-center"></p>
+
+            <a href="{% url 'documents:detail' documento.pk %}"
+               class="block text-center text-sm text-slate-500 hover:underline">Volver al documento</a>
+        </aside>
+    </div>
+</div>
+
+<script id="placement-config" type="application/json">
+{
+    "pdfUrl": "{{ pdf_url|escapejs }}",
+    "apiUrl": "{% url 'documents:placement_api' documento.pk %}",
+    "signatureImageUrl": "{{ signature_image_url|escapejs }}",
+    "pageCount": {{ documento.page_count|default:1 }},
+    "csrfToken": "{{ csrf_token }}",
+    "workerSrc": "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js",
+    "placement": {% if documento.has_placement %}{"page": {{ documento.placement_page }}, "x": {{ documento.placement_x }}, "y": {{ documento.placement_y }}, "w": {{ documento.placement_w }}, "h": {{ documento.placement_h }}}{% else %}null{% endif %}
+}
+</script>
+{% endblock %}
+
+{% block extra_body %}
+    <script src="{% static 'js/placement.js' %}"></script>
+{% endblock %}
