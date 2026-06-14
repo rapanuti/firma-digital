@@ -10,7 +10,7 @@ from django.urls import reverse
 from accounts.models import SignatureProfile
 from documents.models import Document
 from signing.models import AuditEvent, Signature
-from signing.services import SigningError, sign_document
+from signing.services import SigningError, sign_document, void_signature
 
 PASSWORD = "clave-segura-123"
 
@@ -162,3 +162,74 @@ def test_result_view_muestra_codigo(client, firmante, png_firma, pdf_carta_bytes
     resp = client.get(reverse("signing:result", args=[sig.pk]))
     assert resp.status_code == 200
     assert sig.verification_code.encode() in resp.content
+
+
+# === Fase 7: anulación y auditoría =======================================
+
+
+def test_void_signature_service(db, firmante, png_firma, pdf_carta_bytes):
+    doc = _setup(firmante, png_firma, pdf_carta_bytes)
+    sig = sign_document(doc, firmante)
+    void_signature(sig, firmante, "Error en los datos", ip="9.9.9.9")
+
+    sig.refresh_from_db()
+    doc.refresh_from_db()
+    assert sig.status == Signature.Status.VOIDED
+    assert sig.void_reason == "Error en los datos"
+    assert sig.voided_by == firmante
+    assert doc.status == Document.Status.VOIDED
+    assert AuditEvent.objects.filter(action=AuditEvent.Action.VOIDED, signature=sig).exists()
+
+
+def test_no_se_puede_reanular(db, firmante, png_firma, pdf_carta_bytes):
+    sig = sign_document(_setup(firmante, png_firma, pdf_carta_bytes), firmante)
+    void_signature(sig, firmante, "motivo")
+    with pytest.raises(SigningError):
+        void_signature(sig, firmante, "otra vez")
+
+
+def test_void_view_requiere_motivo(client, firmante, png_firma, pdf_carta_bytes):
+    sig = sign_document(_setup(firmante, png_firma, pdf_carta_bytes), firmante)
+    client.login(username="ana", password=PASSWORD)
+    resp = client.post(reverse("signing:void", args=[sig.pk]), {"reason": ""})
+    assert resp.status_code == 200  # se queda en el formulario
+    sig.refresh_from_db()
+    assert sig.is_valid  # no se anuló
+
+
+def test_void_view_ajeno_prohibido(client, firmante, otro, png_firma, pdf_carta_bytes):
+    sig = sign_document(_setup(otro, png_firma, pdf_carta_bytes), otro)
+    client.login(username="ana", password=PASSWORD)
+    resp = client.post(reverse("signing:void", args=[sig.pk]), {"reason": "x"})
+    assert resp.status_code == 403
+
+
+def test_anulacion_visible_en_verificacion(client, firmante, png_firma, pdf_carta_bytes):
+    sig = sign_document(_setup(firmante, png_firma, pdf_carta_bytes), firmante)
+    void_signature(sig, firmante, "documento incorrecto")
+    resp = client.get(reverse("verification:detail", args=[sig.verification_code]))
+    assert resp.status_code == 200
+    assert b"Anulada" in resp.content
+
+
+def test_upload_crea_audit_event(client, firmante, pdf_carta):
+    client.login(username="ana", password=PASSWORD)
+    client.post(reverse("documents:upload"), {"title": "X", "original_file": pdf_carta})
+    assert AuditEvent.objects.filter(action=AuditEvent.Action.UPLOADED).exists()
+
+
+def test_auditoria_admin_ve_todo(client, administrador, firmante, png_firma, pdf_carta_bytes):
+    sign_document(_setup(firmante, png_firma, pdf_carta_bytes), firmante)  # evento de ana
+    client.login(username="root", password=PASSWORD)
+    resp = client.get(reverse("signing:audit"))
+    assert resp.status_code == 200
+    assert b"Firmado" in resp.content
+
+
+def test_auditoria_firmante_solo_lo_suyo(client, firmante, otro, png_firma, pdf_carta_bytes):
+    otro_sig = sign_document(_setup(otro, png_firma, pdf_carta_bytes), otro)
+    client.login(username="ana", password=PASSWORD)
+    resp = client.get(reverse("signing:audit"))
+    assert resp.status_code == 200
+    # No debe ver el código de la firma de "otro".
+    assert otro_sig.verification_code.encode() not in resp.content

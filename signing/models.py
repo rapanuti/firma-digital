@@ -86,6 +86,7 @@ class AuditEvent(models.Model):
     """Bitácora append-only de acciones sobre documentos y firmas."""
 
     class Action(models.TextChoices):
+        UPLOADED = "uploaded", "Subido"
         SIGNED = "signed", "Firmado"
         VOIDED = "voided", "Anulado"
         VERIFIED = "verified", "Verificado"

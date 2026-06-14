@@ -51,11 +51,30 @@ class DocumentCreateView(LoginRequiredMixin, CreateView):
         form.instance.original_sha256 = sha256_of(f)
         form.instance.file_size = f.size or 0
         form.instance.page_count = pdf_page_count(f)
+        response = super().form_valid(form)  # guarda -> self.object
+
+        from signing.models import AuditEvent
+
+        AuditEvent.objects.create(
+            actor=self.request.user,
+            document=self.object,
+            action=AuditEvent.Action.UPLOADED,
+            ip_address=_client_ip(self.request),
+            user_agent=self.request.META.get("HTTP_USER_AGENT", ""),
+            original_sha256=self.object.original_sha256,
+        )
         messages.success(self.request, "Documento subido correctamente.")
-        return super().form_valid(form)
+        return response
 
     def get_success_url(self):
         return reverse("documents:detail", args=[self.object.pk])
+
+
+def _client_ip(request):
+    xff = request.META.get("HTTP_X_FORWARDED_FOR")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.META.get("REMOTE_ADDR")
 
 
 def _get_document_or_403(request, pk):
