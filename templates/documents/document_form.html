@@ -5,7 +5,7 @@
 {% block content %}
 <div class="mx-auto max-w-xl">
     <h1 class="text-xl font-semibold text-slate-900">Subir documento</h1>
-    <p class="mt-1 text-sm text-slate-500">Solo archivos PDF (máx. {{ '' }}configurado en el servidor).</p>
+    <p class="mt-1 text-sm text-slate-500">Solo archivos PDF (máximo {{ max_pdf_mb }} MB).</p>
 
     <form method="post" enctype="multipart/form-data"
           class="mt-6 space-y-4 rounded-xl border border-slate-200 bg-white p-6">

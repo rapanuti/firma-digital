@@ -22,3 +22,10 @@ class DocumentUploadForm(forms.ModelForm):
                 attrs={"class": "block w-full text-sm", "accept": "application/pdf"}
             ),
         }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # No validar la longitud del NOMBRE original del archivo: al guardar se
+        # renombra con un UUID corto (ver upload_to), así que el nombre que sube
+        # el usuario puede ser tan largo como quiera.
+        self.fields["original_file"].max_length = None
