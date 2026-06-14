@@ -3,15 +3,23 @@
 {% block title %}Inicio · Firma Digital{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-2xl text-center py-12">
-    <span class="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-brand-600 text-white text-xl font-semibold">F</span>
-    <h1 class="mt-6 text-2xl font-semibold text-slate-900">Sistema de Firma Digital</h1>
-    <p class="mt-2 text-slate-500">
-        Plataforma de firma electrónica verificable de documentos PDF.
-    </p>
-    <p class="mt-6 inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-700 border border-emerald-200">
-        <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
-        Scaffold operativo (Fase 0)
-    </p>
+<div class="mx-auto max-w-3xl">
+    <h1 class="text-xl font-semibold text-slate-900">
+        Hola, {{ user.get_short_name|default:user.username }}
+    </h1>
+    <p class="mt-1 text-slate-500">Panel del sistema de firma electrónica verificable.</p>
+
+    <div class="mt-6 grid gap-4 sm:grid-cols-2">
+        <a href="{% url 'accounts:profile' %}"
+           class="rounded-xl border border-slate-200 bg-white p-5 transition hover:border-brand-600">
+            <h2 class="font-medium text-slate-900">Mi perfil</h2>
+            <p class="mt-1 text-sm text-slate-500">Datos de tu cuenta y rol en el sistema.</p>
+        </a>
+
+        <div class="rounded-xl border border-dashed border-slate-200 bg-white p-5 opacity-60">
+            <h2 class="font-medium text-slate-900">Documentos</h2>
+            <p class="mt-1 text-sm text-slate-500">Subir y firmar PDF · próximamente (Fase 3).</p>
+        </div>
+    </div>
 </div>
 {% endblock %}

@@ -32,7 +32,20 @@
                 Firma Digital
             </a>
             <nav class="flex items-center gap-4 text-sm">
-                {% block nav %}{% endblock %}
+                {% if user.is_authenticated %}
+                    {% if user.is_admin_role %}
+                        <a href="{% url 'accounts:user_list' %}" class="text-slate-600 hover:text-slate-900">Usuarios</a>
+                    {% endif %}
+                    <a href="{% url 'accounts:profile' %}" class="text-slate-600 hover:text-slate-900">
+                        {{ user.get_short_name|default:user.username }}
+                    </a>
+                    <form method="post" action="{% url 'accounts:logout' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="text-slate-600 hover:text-slate-900">Salir</button>
+                    </form>
+                {% else %}
+                    <a href="{% url 'accounts:login' %}" class="rounded-md bg-brand-600 px-3 py-1.5 text-white hover:bg-brand-700">Ingresar</a>
+                {% endif %}
             </nav>
         </div>
     </header>
