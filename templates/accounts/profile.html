@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Mi perfil · Firma Digital{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl">
+    <div class="flex items-center justify-between">
+        <h1 class="text-xl font-semibold text-slate-900">Mi perfil</h1>
+        <a href="{% url 'accounts:profile_edit' %}"
+           class="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50">Editar</a>
+    </div>
+
+    <dl class="mt-6 divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
+        <div class="flex justify-between px-4 py-3 text-sm">
+            <dt class="text-slate-500">Usuario</dt><dd class="text-slate-900">{{ user.username }}</dd>
+        </div>
+        <div class="flex justify-between px-4 py-3 text-sm">
+            <dt class="text-slate-500">Nombre</dt><dd class="text-slate-900">{{ user.get_full_name|default:"—" }}</dd>
+        </div>
+        <div class="flex justify-between px-4 py-3 text-sm">
+            <dt class="text-slate-500">Correo</dt><dd class="text-slate-900">{{ user.email }}</dd>
+        </div>
+        <div class="flex justify-between px-4 py-3 text-sm">
+            <dt class="text-slate-500">Rol</dt><dd class="text-slate-900">{{ user.get_role_display }}</dd>
+        </div>
+    </dl>
+
+    <p class="mt-4 text-sm text-slate-500">
+        El perfil de firma (imagen manuscrita, cédula y cargo) se configura en el módulo de firma (Fase 2).
+    </p>
+</div>
+{% endblock %}
