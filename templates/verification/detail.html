@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Verificación {{ code }} · Firma Digital{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-2xl">
+    <a href="{% url 'verification:index' %}" class="text-sm text-slate-500 hover:underline">← Verificar otro</a>
+
+    {% if not signature %}
+        <div class="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-6 text-center">
+            <h1 class="text-lg font-semibold text-amber-800">Firma no encontrada</h1>
+            <p class="mt-1 text-sm text-amber-700">No existe ninguna firma registrada con el código
+                <span class="font-mono">{{ code }}</span>.</p>
+        </div>
+    {% else %}
+        <div class="mt-4 rounded-xl border bg-white p-6
+            {% if signature.is_valid %}border-emerald-200{% else %}border-red-200{% endif %}">
+            <div class="flex items-center justify-between">
+                <h1 class="text-lg font-semibold text-slate-900">Firma registrada</h1>
+                {% if signature.is_valid %}
+                    <span class="rounded-full bg-emerald-50 px-3 py-1 text-sm font-medium text-emerald-700 border border-emerald-200">✓ Válida</span>
+                {% else %}
+                    <span class="rounded-full bg-red-50 px-3 py-1 text-sm font-medium text-red-700 border border-red-200">✕ Anulada</span>
+                {% endif %}
+            </div>
+
+            <dl class="mt-5 divide-y divide-slate-100 text-sm">
+                <div class="flex justify-between py-2"><dt class="text-slate-500">Firmante</dt><dd class="text-slate-900">{{ signature.signer_name }}</dd></div>
+                <div class="flex justify-between py-2"><dt class="text-slate-500">Documento de identidad</dt><dd class="text-slate-900 font-mono">{{ masked_ci }}</dd></div>
+                {% if signature.signer_title %}<div class="flex justify-between py-2"><dt class="text-slate-500">Cargo</dt><dd class="text-slate-900">{{ signature.signer_title }}</dd></div>{% endif %}
+                <div class="flex justify-between py-2"><dt class="text-slate-500">Fecha de firma</dt><dd class="text-slate-900">{{ signature.signed_at|date:"d/m/Y H:i" }}</dd></div>
+                <div class="flex justify-between py-2"><dt class="text-slate-500">Código</dt><dd class="text-slate-900 font-mono">{{ signature.verification_code }}</dd></div>
+                {% if show_title %}<div class="flex justify-between py-2"><dt class="text-slate-500">Documento</dt><dd class="text-slate-900">{{ signature.document.title }}</dd></div>{% endif %}
+                <div class="py-2">
+                    <dt class="text-slate-500 mb-1">SHA-256 del documento firmado</dt>
+                    <dd class="font-mono text-xs break-all text-slate-700">{{ signature.signed_sha256 }}</dd>
+                </div>
+            </dl>
+
+            {% if not signature.is_valid %}
+                <div class="mt-4 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+                    Esta firma fue anulada{% if signature.void_reason %}: {{ signature.void_reason }}{% endif %}.
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Comparación de archivo contra esta firma -->
+        <div class="mt-6 rounded-xl border border-slate-200 bg-white p-6">
+            <h2 class="font-medium text-slate-900">Comprobar mi archivo</h2>
+            <p class="mt-1 text-sm text-slate-500">Sube el PDF que tienes para confirmar que coincide exactamente con esta firma.</p>
+
+            {% if file_match is not None %}
+                {% if file_match %}
+                    <div class="mt-3 rounded-md bg-emerald-50 border border-emerald-200 px-3 py-2 text-sm text-emerald-800">
+                        ✓ El archivo coincide: es el documento firmado original, sin alteraciones.
+                    </div>
+                {% else %}
+                    <div class="mt-3 rounded-md bg-red-50 border border-red-200 px-3 py-2 text-sm text-red-700">
+                        ✕ El archivo NO coincide con esta firma (fue modificado o no es el original).
+                    </div>
+                {% endif %}
+            {% endif %}
+
+            <form method="post" enctype="multipart/form-data" class="mt-4 flex flex-wrap items-center gap-3">
+                {% csrf_token %}
+                {{ file_form.archivo }}
+                <button type="submit"
+                        class="rounded-md border border-brand-600 px-3 py-2 text-sm font-medium text-brand-700 hover:bg-brand-50">
+                    Comparar
+                </button>
+            </form>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
