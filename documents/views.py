@@ -2,6 +2,7 @@
 
 import json
 
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
@@ -44,6 +45,11 @@ class DocumentCreateView(LoginRequiredMixin, CreateView):
     model = Document
     form_class = DocumentUploadForm
     template_name = "documents/document_form.html"
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        ctx["max_pdf_mb"] = settings.MAX_PDF_SIZE_MB
+        return ctx
 
     def form_valid(self, form):
         f = form.cleaned_data["original_file"]

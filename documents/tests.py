@@ -36,6 +36,16 @@ def test_subir_pdf_crea_documento(client, firmante, pdf_carta, pdf_carta_bytes):
     assert doc.original_sha256 == hashlib.sha256(pdf_carta_bytes).hexdigest()
 
 
+def test_subir_pdf_nombre_muy_largo(client, firmante, pdf_carta_bytes):
+    """Un nombre de archivo largo (>100) no debe bloquear la subida."""
+    client.login(username="ana", password=PASSWORD)
+    nombre = "a" * 200 + ".pdf"
+    f = SimpleUploadedFile(nombre, pdf_carta_bytes, content_type="application/pdf")
+    resp = client.post(reverse("documents:upload"), {"title": "X", "original_file": f})
+    assert resp.status_code == 302
+    assert Document.objects.filter(owner=firmante).exists()
+
+
 def test_subir_rechaza_no_pdf(client, firmante):
     client.login(username="ana", password=PASSWORD)
     fake = SimpleUploadedFile("doc.txt", b"texto plano", content_type="text/plain")
