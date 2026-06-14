@@ -82,6 +82,9 @@ def test_pdf_firmado_contiene_sello(db, firmante, png_firma, pdf_carta_bytes):
         assert "Ana Pérez" in text
         assert sig.verification_code in text
         assert "Firmado electrónicamente" in text
+        # El SHA-256 del documento ORIGINAL aparece impreso en el sello.
+        assert "SHA-256" in text
+        assert sig.original_sha256[:16] in text
         # Hay al menos 2 imágenes nuevas: firma manuscrita + QR.
         assert len(page.get_images()) >= 2
     finally:

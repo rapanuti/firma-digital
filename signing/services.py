@@ -103,6 +103,7 @@ def sign_document(document: Document, signer, *, ip=None, user_agent=""):
                 f"Fecha: {fecha}",
                 f"Código: {code}",
             ],
+            doc_hash=document.original_sha256,
         )
         signed_bytes = doc.tobytes(deflate=True, garbage=3)
     finally:

@@ -32,7 +32,7 @@
     // Posición del bloque como fracciones (0..1). Por defecto, abajo a la derecha.
     let frac = cfg.placement
         ? { x: cfg.placement.x, y: cfg.placement.y, w: cfg.placement.w, h: cfg.placement.h }
-        : { x: 0.55, y: 0.82, w: 0.40, h: 0.13 };
+        : { x: 0.48, y: 0.76, w: 0.48, h: 0.18 };
 
     // ---- Render de la página ------------------------------------------------
     async function renderPage(num) {
