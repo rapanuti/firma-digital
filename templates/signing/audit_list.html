@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Auditoría · Firma Digital{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-5xl">
+    <h1 class="text-xl font-semibold text-slate-900">Auditoría</h1>
+    <p class="mt-1 text-sm text-slate-500">Bitácora de eventos (subida, firma, verificación, anulación).</p>
+
+    <div class="mt-6 overflow-x-auto rounded-xl border border-slate-200 bg-white">
+        <table class="min-w-full divide-y divide-slate-200 text-sm">
+            <thead class="bg-slate-50 text-left text-slate-500">
+                <tr>
+                    <th class="px-3 py-2 font-medium">Fecha</th>
+                    <th class="px-3 py-2 font-medium">Acción</th>
+                    <th class="px-3 py-2 font-medium">Usuario</th>
+                    <th class="px-3 py-2 font-medium">Código</th>
+                    <th class="px-3 py-2 font-medium">Documento</th>
+                    <th class="px-3 py-2 font-medium">IP</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+                {% for ev in eventos %}
+                    <tr>
+                        <td class="px-3 py-2 text-slate-600 whitespace-nowrap">{{ ev.timestamp|date:"d/m/Y H:i" }}</td>
+                        <td class="px-3 py-2">
+                            <span class="rounded-full px-2 py-0.5 text-xs border
+                                {% if ev.action == 'signed' %}bg-emerald-50 text-emerald-700 border-emerald-200
+                                {% elif ev.action == 'voided' %}bg-red-50 text-red-700 border-red-200
+                                {% elif ev.action == 'verified' %}bg-blue-50 text-blue-700 border-blue-200
+                                {% else %}bg-slate-50 text-slate-600 border-slate-200{% endif %}">
+                                {{ ev.get_action_display }}
+                            </span>
+                        </td>
+                        <td class="px-3 py-2 text-slate-700">{{ ev.actor|default:"—" }}</td>
+                        <td class="px-3 py-2 font-mono text-xs text-slate-600">{{ ev.verification_code|default:"—" }}</td>
+                        <td class="px-3 py-2 text-slate-700">{{ ev.document.title|default:"—" }}</td>
+                        <td class="px-3 py-2 text-slate-500">{{ ev.ip_address|default:"—" }}</td>
+                    </tr>
+                {% empty %}
+                    <tr><td colspan="6" class="px-3 py-8 text-center text-slate-400">Sin eventos.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

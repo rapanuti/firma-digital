@@ -151,3 +151,33 @@ def sign_document(document: Document, signer, *, ip=None, user_agent=""):
         status=signature.status,
     )
     return signature
+
+
+@transaction.atomic
+def void_signature(signature, by_user, reason, *, ip=None, user_agent=""):
+    """Anula una firma emitida (no se modifica; se anula y se registra)."""
+    if signature.status != Signature.Status.VALID:
+        raise SigningError("La firma ya está anulada.")
+
+    signature.status = Signature.Status.VOIDED
+    signature.void_reason = reason
+    signature.voided_at = timezone.now()
+    signature.voided_by = by_user
+    signature.save(update_fields=["status", "void_reason", "voided_at", "voided_by"])
+
+    document = signature.document
+    document.status = Document.Status.VOIDED
+    document.save(update_fields=["status", "updated_at"])
+
+    AuditEvent.objects.create(
+        actor=by_user,
+        document=document,
+        signature=signature,
+        action=AuditEvent.Action.VOIDED,
+        ip_address=ip,
+        user_agent=user_agent,
+        verification_code=signature.verification_code,
+        status=signature.status,
+        reason=reason,
+    )
+    return signature

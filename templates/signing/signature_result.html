@@ -4,9 +4,15 @@
 
 {% block content %}
 <div class="mx-auto max-w-2xl">
-    <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-        ✓ Documento firmado correctamente.
-    </div>
+    {% if firma.is_valid %}
+        <div class="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+            ✓ Firma válida.
+        </div>
+    {% else %}
+        <div class="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+            ✕ Esta firma fue anulada{% if firma.void_reason %}: {{ firma.void_reason }}{% endif %}.
+        </div>
+    {% endif %}
 
     <div class="mt-6 grid gap-6 sm:grid-cols-[1fr_160px]">
         <div>
@@ -41,6 +47,10 @@
            class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">
             Descargar PDF firmado
         </a>
+        {% if firma.is_valid %}
+            <a href="{% url 'signing:void' firma.pk %}"
+               class="rounded-md border border-red-300 px-4 py-2 text-sm text-red-700 hover:bg-red-50">Anular firma</a>
+        {% endif %}
         <a href="{% url 'documents:detail' firma.document.pk %}"
            class="rounded-md border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">Volver al documento</a>
     </div>
