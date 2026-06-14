@@ -159,6 +159,16 @@ DATA_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # 5 MB para campos no-archivo
 FILE_UPLOAD_MAX_MEMORY_SIZE = 5 * 1024 * 1024  # por encima de esto -> archivo temporal
 
 # ---------------------------------------------------------------------------
+# Cabeceras de seguridad (siempre activas)
+# ---------------------------------------------------------------------------
+SECURE_CONTENT_TYPE_NOSNIFF = True
+SECURE_REFERRER_POLICY = "same-origin"
+X_FRAME_OPTIONS = "DENY"
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = "Lax"
+CSRF_COOKIE_SAMESITE = "Lax"
+
+# ---------------------------------------------------------------------------
 # Endurecimiento para producción (se activa cuando DJANGO_SECURE_SSL=True)
 # ---------------------------------------------------------------------------
 if env("DJANGO_SECURE_SSL"):
