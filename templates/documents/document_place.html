@@ -63,6 +63,10 @@
             </button>
             <p id="save-status" class="text-sm text-center"></p>
 
+            <a href="{% url 'signing:sign' documento.pk %}"
+               class="block w-full rounded-md border border-brand-600 px-4 py-2 text-center text-sm font-medium text-brand-700 hover:bg-brand-50">
+                Ir a firmar →
+            </a>
             <a href="{% url 'documents:detail' documento.pk %}"
                class="block text-center text-sm text-slate-500 hover:underline">Volver al documento</a>
         </aside>
