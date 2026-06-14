@@ -56,14 +56,14 @@ def _qr_content(mode, *, url, name, ci, fecha, code, original_sha256) -> str:
     - "data": bloque autocontenido con los datos de la firma, legible sin servidor.
     """
     if mode == Document.QrMode.DATA:
+        # Modo datos: 100% autocontenido, sin URLs (lectura totalmente offline).
         return (
             "FIRMA ELECTRONICA VERIFICABLE\n"
             f"Firmante: {name}\n"
             f"C.I.: {ci}\n"
             f"Fecha: {fecha}\n"
             f"Codigo: {code}\n"
-            f"SHA-256 (original): {original_sha256}\n"
-            f"Verificar: {url}"
+            f"SHA-256 (original): {original_sha256}"
         )
     return url
 
