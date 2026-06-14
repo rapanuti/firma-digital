@@ -57,6 +57,17 @@ def test_subir_rechaza_pdf_falso(client, firmante):
     assert not Document.objects.exists()
 
 
+def test_subir_rechaza_pdf_demasiado_grande(client, firmante, settings, pdf_carta):
+    """Se respeta el límite de tamaño configurable (MAX_PDF_SIZE_MB)."""
+    settings.MAX_PDF_SIZE_MB = 0  # cualquier archivo no vacío supera el límite
+    client.login(username="ana", password=PASSWORD)
+    resp = client.post(
+        reverse("documents:upload"), {"title": "X", "original_file": pdf_carta}
+    )
+    assert resp.status_code == 200
+    assert not Document.objects.exists()
+
+
 def _make_doc(owner, pdf_bytes):
     return Document.objects.create(
         owner=owner,
