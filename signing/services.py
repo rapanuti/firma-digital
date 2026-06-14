@@ -49,6 +49,25 @@ def _verification_url(code: str) -> str:
     return f"{settings.VERIFICATION_BASE_URL.rstrip('/')}/verificar/{code}/"
 
 
+def _qr_content(mode, *, url, name, ci, fecha, code, original_sha256) -> str:
+    """Contenido del QR según el modo elegido al ubicar la firma.
+
+    - "url":  solo la URL de verificación (requiere el sistema en línea).
+    - "data": bloque autocontenido con los datos de la firma, legible sin servidor.
+    """
+    if mode == Document.QrMode.DATA:
+        return (
+            "FIRMA ELECTRONICA VERIFICABLE\n"
+            f"Firmante: {name}\n"
+            f"C.I.: {ci}\n"
+            f"Fecha: {fecha}\n"
+            f"Codigo: {code}\n"
+            f"SHA-256 (original): {original_sha256}\n"
+            f"Verificar: {url}"
+        )
+    return url
+
+
 @transaction.atomic
 def sign_document(document: Document, signer, *, ip=None, user_agent=""):
     """Firma ``document`` por ``signer`` y devuelve la ``Signature`` creada."""
@@ -88,8 +107,18 @@ def sign_document(document: Document, signer, *, ip=None, user_agent=""):
         profile.signature_image.open("rb")
         signature_png = profile.signature_image.read()
         profile.signature_image.close()
-        qr_png = make_qr_png(_verification_url(code))
+
         fecha = timezone.localtime(signed_at).strftime("%d/%m/%Y %H:%M")
+        qr_content = _qr_content(
+            document.qr_mode,
+            url=_verification_url(code),
+            name=profile.full_name,
+            ci=profile.id_document,
+            fecha=fecha,
+            code=code,
+            original_sha256=document.original_sha256,
+        )
+        qr_png = make_qr_png(qr_content)
 
         stamp_seal(
             page,
@@ -123,6 +152,7 @@ def sign_document(document: Document, signer, *, ip=None, user_agent=""):
         width=document.placement_w,
         height=document.placement_h,
         page_rotation=document.placement_rotation,
+        qr_mode=document.qr_mode,
         original_sha256=document.original_sha256,
         signed_sha256=signed_sha,
         verification_code=code,

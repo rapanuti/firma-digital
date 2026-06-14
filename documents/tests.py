@@ -177,6 +177,30 @@ def test_placement_api_guarda(client, firmante, pdf_carta_bytes):
     assert doc.has_placement is True
 
 
+def test_placement_api_guarda_qr_mode(client, firmante, pdf_carta_bytes):
+    doc = _make_doc_local(firmante, pdf_carta_bytes)
+    client.login(username="ana", password=PASSWORD)
+    client.post(
+        reverse("documents:placement_api", args=[doc.pk]),
+        data=json.dumps({"page": 1, "fx": 0.1, "fy": 0.2, "fw": 0.3, "fh": 0.1, "qr_mode": "data"}),
+        content_type="application/json",
+    )
+    doc.refresh_from_db()
+    assert doc.qr_mode == "data"
+
+
+def test_placement_api_qr_mode_invalido_cae_a_url(client, firmante, pdf_carta_bytes):
+    doc = _make_doc_local(firmante, pdf_carta_bytes)
+    client.login(username="ana", password=PASSWORD)
+    client.post(
+        reverse("documents:placement_api", args=[doc.pk]),
+        data=json.dumps({"page": 1, "fx": 0.1, "fy": 0.2, "fw": 0.3, "fh": 0.1, "qr_mode": "xxx"}),
+        content_type="application/json",
+    )
+    doc.refresh_from_db()
+    assert doc.qr_mode == "url"
+
+
 def test_placement_api_rechaza_fuera_de_rango(client, firmante, pdf_carta_bytes):
     doc = _make_doc_local(firmante, pdf_carta_bytes)
     client.login(username="ana", password=PASSWORD)

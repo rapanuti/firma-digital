@@ -138,8 +138,12 @@ def placement_api(request, pk):
         fx, fy = float(data["fx"]), float(data["fy"])
         fw, fh = float(data["fw"]), float(data["fh"])
         rotation = int(data.get("rotation", 0))
+        qr_mode = str(data.get("qr_mode", Document.QrMode.URL))
     except (KeyError, ValueError, TypeError, json.JSONDecodeError):
         return HttpResponseBadRequest("Datos inválidos.")
+
+    if qr_mode not in Document.QrMode.values:
+        qr_mode = Document.QrMode.URL
 
     if not (1 <= page <= (doc.page_count or 1)):
         return HttpResponseBadRequest("Página fuera de rango.")
@@ -156,10 +160,11 @@ def placement_api(request, pk):
     doc.placement_x, doc.placement_y = fx, fy
     doc.placement_w, doc.placement_h = fw, fh
     doc.placement_rotation = rotation
+    doc.qr_mode = qr_mode
     doc.save(
         update_fields=[
             "placement_page", "placement_x", "placement_y",
-            "placement_w", "placement_h", "placement_rotation", "updated_at",
+            "placement_w", "placement_h", "placement_rotation", "qr_mode", "updated_at",
         ]
     )
     return JsonResponse({"ok": True})

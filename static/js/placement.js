@@ -24,6 +24,16 @@
 
     blockImg.style.backgroundImage = `url("${cfg.signatureImageUrl}")`;
 
+    // Modo del QR (URL de verificación vs. datos de la firma)
+    const qrRadios = document.getElementsByName("qr_mode");
+    if (cfg.qrMode) {
+        for (const r of qrRadios) r.checked = r.value === cfg.qrMode;
+    }
+    function selectedQrMode() {
+        for (const r of qrRadios) if (r.checked) return r.value;
+        return "url";
+    }
+
     let pdfDoc = null;
     let currentPage = (cfg.placement && cfg.placement.page) || 1;
     let pageRotation = 0;
@@ -144,6 +154,7 @@
                     page: currentPage,
                     fx: frac.x, fy: frac.y, fw: frac.w, fh: frac.h,
                     rotation: pageRotation,
+                    qr_mode: selectedQrMode(),
                 }),
             });
             if (resp.ok) {
