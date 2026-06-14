@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}{{ documento.title }} · Firma Digital{% endblock %}
+
+{% block content %}
+<div class="mx-auto max-w-3xl">
+    <div class="flex items-center justify-between">
+        <div>
+            <a href="{% url 'documents:list' %}" class="text-sm text-slate-500 hover:underline">← Documentos</a>
+            <h1 class="mt-1 text-xl font-semibold text-slate-900">{{ documento.title }}</h1>
+        </div>
+        {% if documento.status == 'signed' %}
+            <span class="rounded-full bg-emerald-50 px-3 py-1 text-sm text-emerald-700 border border-emerald-200">Firmado</span>
+        {% elif documento.status == 'voided' %}
+            <span class="rounded-full bg-red-50 px-3 py-1 text-sm text-red-700 border border-red-200">Anulado</span>
+        {% else %}
+            <span class="rounded-full bg-amber-50 px-3 py-1 text-sm text-amber-700 border border-amber-200">Pendiente</span>
+        {% endif %}
+    </div>
+
+    <dl class="mt-6 divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
+        <div class="flex justify-between px-4 py-3 text-sm">
+            <dt class="text-slate-500">Páginas</dt><dd class="text-slate-900">{{ documento.page_count|default:"—" }}</dd>
+        </div>
+        <div class="flex justify-between px-4 py-3 text-sm">
+            <dt class="text-slate-500">Tamaño</dt><dd class="text-slate-900">{{ documento.file_size|filesizeformat }}</dd>
+        </div>
+        <div class="flex justify-between px-4 py-3 text-sm">
+            <dt class="text-slate-500">Subido</dt><dd class="text-slate-900">{{ documento.created_at|date:"d/m/Y H:i" }}</dd>
+        </div>
+        <div class="px-4 py-3 text-sm">
+            <dt class="text-slate-500 mb-1">SHA-256 del original</dt>
+            <dd class="font-mono text-xs break-all text-slate-700">{{ documento.original_sha256 }}</dd>
+        </div>
+    </dl>
+
+    <div class="mt-6 flex flex-wrap gap-2">
+        <a href="{% url 'documents:download_original' documento.pk %}"
+           class="rounded-md border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">Descargar original</a>
+        {% if documento.status == 'pending' %}
+            <span class="rounded-md border border-dashed border-slate-300 px-4 py-2 text-sm text-slate-400">
+                Ubicar y firmar · próximamente (Fase 4)
+            </span>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

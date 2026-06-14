@@ -6,10 +6,40 @@ import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 
+PASSWORD = "clave-segura-123"
+
+
 @pytest.fixture(autouse=True)
 def _media_temporal(settings, tmp_path):
     """Aísla los archivos subidos en cada test a un directorio temporal."""
     settings.MEDIA_ROOT = tmp_path / "media"
+
+
+@pytest.fixture
+def firmante(db):
+    from accounts.models import User
+
+    return User.objects.create_user(
+        username="ana", email="ana@example.com", password=PASSWORD, role=User.Role.SIGNER
+    )
+
+
+@pytest.fixture
+def administrador(db):
+    from accounts.models import User
+
+    return User.objects.create_user(
+        username="root", email="root@example.com", password=PASSWORD, role=User.Role.ADMIN
+    )
+
+
+@pytest.fixture
+def otro(db):
+    from accounts.models import User
+
+    return User.objects.create_user(
+        username="otro", email="otro@example.com", password=PASSWORD, role=User.Role.SIGNER
+    )
 
 
 @pytest.fixture
