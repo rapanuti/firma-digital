@@ -5,21 +5,8 @@ from django.urls import reverse
 
 from accounts.models import User
 
+# Las fixtures `firmante`, `administrador` y `otro` viven en conftest.py.
 PASSWORD = "clave-segura-123"
-
-
-@pytest.fixture
-def firmante(db):
-    return User.objects.create_user(
-        username="ana", email="ana@example.com", password=PASSWORD, role=User.Role.SIGNER
-    )
-
-
-@pytest.fixture
-def administrador(db):
-    return User.objects.create_user(
-        username="root", email="root@example.com", password=PASSWORD, role=User.Role.ADMIN
-    )
 
 
 # --- Modelo -------------------------------------------------------------
