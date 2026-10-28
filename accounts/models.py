@@ -88,12 +88,20 @@ class SignatureProfile(models.Model):
 
 
 class SignatureImage(models.Model):
-    """Imagen de firma manuscrita; un perfil puede tener varias (firma, rúbrica...)."""
+    """Firma del usuario: imagen manuscrita + datos que aparecen en el sello.
+
+    Un perfil puede tener varias (p. ej. a título personal y como representante),
+    cada una con su propio nombre, C.I., correo y cargo.
+    """
 
     profile = models.ForeignKey(
         SignatureProfile, on_delete=models.CASCADE, related_name="images"
     )
-    name = models.CharField("nombre", max_length=80, default="Firma principal")
+    name = models.CharField("nombre de la firma", max_length=80, default="Firma principal")
+    full_name = models.CharField("nombre completo", max_length=150)
+    id_document = models.CharField("documento de identidad", max_length=30)
+    email = models.EmailField("correo de firma")
+    title = models.CharField("cargo", max_length=150, blank=True)
     image = models.ImageField(
         "imagen de firma",
         upload_to=signature_image_path,
@@ -110,6 +118,18 @@ class SignatureImage(models.Model):
 
     def __str__(self):
         return self.name
+
+    @classmethod
+    def from_profile(cls, profile, **kwargs):
+        """Nueva firma con los datos por defecto del perfil."""
+        data = {
+            "full_name": profile.full_name,
+            "id_document": profile.id_document,
+            "email": profile.email,
+            "title": profile.title,
+        }
+        data.update(kwargs)
+        return cls(profile=profile, **data)
 
     def make_default(self):
         """Marca esta imagen como la predeterminada del perfil (y desmarca las demás)."""

@@ -63,10 +63,13 @@ def signature_profile(request):
     """Muestra el perfil de firma del usuario (o invita a crearlo)."""
     profile = SignatureProfile.objects.filter(user=request.user).first()
     images = profile.images.all() if profile else []
+    image_form = SignatureImageForm(
+        instance=SignatureImage.from_profile(profile) if profile else None
+    )
     return render(
         request,
         "accounts/signature_profile.html",
-        {"profile": profile, "images": images, "image_form": SignatureImageForm()},
+        {"profile": profile, "images": images, "image_form": image_form},
     )
 
 
@@ -100,11 +103,11 @@ def signature_image_add(request):
         messages.warning(request, "Primero configura tu perfil de firma.")
         return redirect("accounts:signature_profile_edit")
 
-    form = SignatureImageForm(request.POST, request.FILES)
+    form = SignatureImageForm(
+        request.POST, request.FILES, instance=SignatureImage(profile=profile)
+    )
     if form.is_valid():
-        img = form.save(commit=False)
-        img.profile = profile
-        img.save()
+        img = form.save()
         if img.is_default or profile.images.count() == 1:
             img.make_default()
         messages.success(request, f"Firma «{img.name}» agregada.")
@@ -114,6 +117,22 @@ def signature_image_add(request):
         request,
         "accounts/signature_profile.html",
         {"profile": profile, "images": profile.images.all(), "image_form": form},
+    )
+
+
+@login_required
+def signature_image_edit(request, pk):
+    """Edita una firma: su imagen y los datos que aparecen en el sello."""
+    img = _own_image_or_404(request, pk)
+    form = SignatureImageForm(request.POST or None, request.FILES or None, instance=img)
+    if request.method == "POST" and form.is_valid():
+        img = form.save()
+        if img.is_default:
+            img.make_default()
+        messages.success(request, f"Firma «{img.name}» actualizada.")
+        return redirect("accounts:signature_profile")
+    return render(
+        request, "accounts/signature_image_edit.html", {"form": form, "firma": img}
     )
 
 

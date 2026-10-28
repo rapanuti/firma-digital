@@ -11,6 +11,15 @@ from accounts.models import SignatureProfile
 from documents.geometry import fractions_to_rect
 from documents.models import Document
 
+def _nueva_firma(profile, **kwargs):
+    """Firma con los datos del perfil (como se crean desde la interfaz)."""
+    from accounts.models import SignatureImage
+
+    img = SignatureImage.from_profile(profile, **kwargs)
+    img.save()
+    return img
+
+
 PASSWORD = "clave-segura-123"
 
 
@@ -169,7 +178,7 @@ def _con_perfil(user, png):
     profile = SignatureProfile.objects.create(
         user=user, full_name="Ana", id_document="V-1", email="a@e.com", is_active=True,
     )
-    profile.images.create(image=png, is_default=True)
+    _nueva_firma(profile, image=png, is_default=True)
     return profile
 
 

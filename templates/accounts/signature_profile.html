@@ -13,7 +13,8 @@
     </div>
 
     {% if profile %}
-        <dl class="mt-6 divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
+        <p class="mt-6 text-sm text-slate-500">Datos por defecto: se usan para prellenar cada firma nueva.</p>
+        <dl class="mt-2 divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
             <div class="flex justify-between px-4 py-3 text-sm">
                 <dt class="text-slate-500">Nombre completo</dt><dd class="text-slate-900">{{ profile.full_name }}</dd>
             </div>
@@ -39,7 +40,7 @@
         </dl>
 
         <h2 class="mt-8 text-base font-semibold text-slate-900">Mis firmas</h2>
-        <p class="mt-1 text-sm text-slate-500">Guarda varias firmas (por ejemplo, firma completa y rúbrica) y elige cuál aplicar al firmar cada documento.</p>
+        <p class="mt-1 text-sm text-slate-500">Cada firma tiene su propia imagen y sus propios datos (nombre, C.I., cargo). Al firmar un documento eliges cuál aplicar.</p>
 
         <div class="mt-4 grid gap-4 sm:grid-cols-2">
             {% for img in images %}
@@ -54,7 +55,14 @@
                          style="background:repeating-conic-gradient(#f1f5f9 0% 25%, #fff 0% 50%) 50%/16px 16px">
                         <img src="{{ img.image.url }}" alt="{{ img.name }}" class="max-h-24 w-auto">
                     </div>
-                    <div class="mt-3 flex gap-2">
+                    <dl class="mt-3 space-y-0.5 text-xs">
+                        <div class="flex justify-between gap-2"><dt class="text-slate-500">Nombre</dt><dd class="text-slate-900 text-right">{{ img.full_name }}</dd></div>
+                        <div class="flex justify-between gap-2"><dt class="text-slate-500">C.I.</dt><dd class="text-slate-900">{{ img.id_document }}</dd></div>
+                        <div class="flex justify-between gap-2"><dt class="text-slate-500">Correo</dt><dd class="text-slate-900 truncate">{{ img.email }}</dd></div>
+                        {% if img.title %}<div class="flex justify-between gap-2"><dt class="text-slate-500">Cargo</dt><dd class="text-slate-900 text-right">{{ img.title }}</dd></div>{% endif %}
+                    </dl>
+                    <div class="mt-3 flex flex-wrap gap-2">
+                        <a href="{% url 'accounts:signature_image_edit' img.pk %}" class="rounded-md border border-slate-300 px-3 py-1 text-xs hover:bg-slate-50">Editar</a>
                         {% if not img.is_default %}
                             <form method="post" action="{% url 'accounts:signature_image_default' img.pk %}">
                                 {% csrf_token %}
@@ -85,7 +93,7 @@
                 {% else %}
                     <div>
                         <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-slate-700 mb-1">
-                            {{ field.label|capfirst }} <span class="text-red-500">*</span>
+                            {{ field.label|capfirst }}{% if field.field.required %} <span class="text-red-500">*</span>{% endif %}
                         </label>
                         {{ field }}
                         {% if field.help_text %}<p class="mt-1 text-xs text-slate-400">{{ field.help_text }}</p>{% endif %}

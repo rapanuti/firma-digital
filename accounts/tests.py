@@ -9,6 +9,15 @@ from accounts.models import User
 PASSWORD = "clave-segura-123"
 
 
+def _nueva_firma(profile, **kwargs):
+    """Firma con los datos del perfil (como se crean desde la interfaz)."""
+    from accounts.models import SignatureImage
+
+    img = SignatureImage.from_profile(profile, **kwargs)
+    img.save()
+    return img
+
+
 # --- Modelo -------------------------------------------------------------
 
 def test_user_model_roles(db):
@@ -166,7 +175,7 @@ def test_signature_profile_inactiva_no_firma(db, firmante, png_firma):
         email="a@e.com",
         is_active=False,
     )
-    profile.images.create(image=png_firma, is_default=True)
+    _nueva_firma(profile, image=png_firma, is_default=True)
     assert profile.can_sign is False
 
 
@@ -186,11 +195,14 @@ def _png(name="otra.png"):
     return SimpleUploadedFile(name, buf.getvalue(), content_type="image/png")
 
 
+DATOS_FIRMA = {"full_name": "Ana", "id_document": "V-1", "email": "a@e.com"}
+
+
 def _perfil(user, png):
     profile = SignatureProfile.objects.create(
         user=user, full_name="Ana", id_document="V-1", email="a@e.com"
     )
-    profile.images.create(name="Firma completa", image=png, is_default=True)
+    _nueva_firma(profile, name="Firma completa", image=png, is_default=True)
     return profile
 
 
@@ -199,7 +211,7 @@ def test_agregar_segunda_firma(client, firmante, png_firma):
     client.login(username="ana", password=PASSWORD)
     resp = client.post(
         reverse("accounts:signature_image_add"),
-        {"name": "Rúbrica", "image": _png()},
+        {"name": "Rúbrica", "image": _png(), **DATOS_FIRMA},
     )
     assert resp.status_code == 302
     assert profile.images.count() == 2
@@ -212,7 +224,7 @@ def test_agregar_firma_como_predeterminada(client, firmante, png_firma):
     client.login(username="ana", password=PASSWORD)
     client.post(
         reverse("accounts:signature_image_add"),
-        {"name": "Rúbrica", "image": _png(), "is_default": "on"},
+        {"name": "Rúbrica", "image": _png(), "is_default": "on", **DATOS_FIRMA},
     )
     assert profile.images.filter(is_default=True).count() == 1
     assert profile.default_image.name == "Rúbrica"
@@ -220,7 +232,7 @@ def test_agregar_firma_como_predeterminada(client, firmante, png_firma):
 
 def test_cambiar_predeterminada(client, firmante, png_firma):
     profile = _perfil(firmante, png_firma)
-    rubrica = profile.images.create(name="Rúbrica", image=_png())
+    rubrica = _nueva_firma(profile, name="Rúbrica", image=_png())
     client.login(username="ana", password=PASSWORD)
     client.post(reverse("accounts:signature_image_default", args=[rubrica.pk]))
     assert profile.default_image == rubrica
@@ -230,7 +242,7 @@ def test_cambiar_predeterminada(client, firmante, png_firma):
 def test_eliminar_firma_promueve_otra(client, firmante, png_firma):
     profile = _perfil(firmante, png_firma)
     principal = profile.default_image
-    rubrica = profile.images.create(name="Rúbrica", image=_png())
+    rubrica = _nueva_firma(profile, name="Rúbrica", image=_png())
     client.login(username="ana", password=PASSWORD)
     client.post(reverse("accounts:signature_image_delete", args=[principal.pk]))
     assert list(profile.images.all()) == [rubrica]
@@ -252,3 +264,58 @@ def test_no_gestionar_firma_ajena(client, firmante, otro, png_firma):
     resp = client.post(reverse("accounts:signature_image_delete", args=[ajena.pk]))
     assert resp.status_code == 404
     assert SignatureImage.objects.filter(pk=ajena.pk).exists()
+
+
+def test_agregar_firma_con_datos_propios(client, firmante, png_firma):
+    profile = _perfil(firmante, png_firma)
+    client.login(username="ana", password=PASSWORD)
+    client.post(
+        reverse("accounts:signature_image_add"),
+        {
+            "name": "Representante",
+            "image": _png(),
+            "full_name": "Inversiones Ana C.A.",
+            "id_document": "J-40123456-7",
+            "email": "empresa@example.com",
+            "title": "Representante legal",
+        },
+    )
+    img = profile.images.get(name="Representante")
+    assert img.full_name == "Inversiones Ana C.A."
+    assert img.id_document == "J-40123456-7"
+    # Los datos del perfil (por defecto) no cambian.
+    profile.refresh_from_db()
+    assert profile.full_name == "Ana"
+
+
+def test_formulario_nueva_firma_prellena_datos_del_perfil(client, firmante, png_firma):
+    _perfil(firmante, png_firma)
+    client.login(username="ana", password=PASSWORD)
+    resp = client.get(reverse("accounts:signature_profile"))
+    assert resp.context["image_form"].initial["id_document"] == "V-1"
+
+
+def test_editar_datos_de_firma(client, firmante, png_firma):
+    img = _perfil(firmante, png_firma).default_image
+    client.login(username="ana", password=PASSWORD)
+    resp = client.post(
+        reverse("accounts:signature_image_edit", args=[img.pk]),
+        {
+            "name": "Personal",
+            "full_name": "Ana María Pérez",
+            "id_document": "V-99",
+            "email": "ana@example.com",
+            "title": "",
+            "is_default": "on",
+        },
+    )
+    assert resp.status_code == 302
+    img.refresh_from_db()
+    assert (img.name, img.full_name, img.id_document) == ("Personal", "Ana María Pérez", "V-99")
+
+
+def test_no_editar_firma_ajena(client, firmante, otro, png_firma):
+    ajena = _perfil(otro, png_firma).default_image
+    client.login(username="ana", password=PASSWORD)
+    resp = client.get(reverse("accounts:signature_image_edit", args=[ajena.pk]))
+    assert resp.status_code == 404
