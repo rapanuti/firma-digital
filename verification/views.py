@@ -30,6 +30,21 @@ def _log_verification(request, signature):
     )
 
 
+def _signers(signature):
+    """Firmantes de cada sello, con la C.I. enmascarada (vista pública)."""
+    if not signature:
+        return []
+    seals = list(signature.seals.all()) or [signature]
+    return [
+        {
+            "name": s.signer_name,
+            "title": s.signer_title,
+            "masked_ci": mask_id_document(s.signer_id_document),
+        }
+        for s in seals
+    ]
+
+
 def index(request):
     """Portada de verificación: por código o por archivo."""
     code = request.GET.get("codigo", "").strip()
@@ -60,6 +75,7 @@ def detail(request, code):
         "signature": signature,
         "code": code,
         "masked_ci": mask_id_document(signature.signer_id_document) if signature else None,
+        "signers": _signers(signature),
         "show_title": settings.VERIFICATION_SHOW_DOCUMENT_TITLE,
         "file_form": file_form,
         "file_match": file_match,
@@ -90,6 +106,7 @@ def verify_by_file(request):
             "signature": signature,
             "digest": digest,
             "masked_ci": mask_id_document(signature.signer_id_document) if signature else None,
+            "signers": _signers(signature),
             "show_title": settings.VERIFICATION_SHOW_DOCUMENT_TITLE,
         },
     )

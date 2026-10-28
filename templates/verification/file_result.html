@@ -18,8 +18,7 @@
             {% endif %}
 
             <dl class="mt-5 divide-y divide-slate-100 text-sm">
-                <div class="flex justify-between py-2"><dt class="text-slate-500">Firmante</dt><dd class="text-slate-900">{{ signature.signer_name }}</dd></div>
-                <div class="flex justify-between py-2"><dt class="text-slate-500">Documento de identidad</dt><dd class="text-slate-900 font-mono">{{ masked_ci }}</dd></div>
+                {% include "verification/_signers.html" %}
                 <div class="flex justify-between py-2"><dt class="text-slate-500">Fecha de firma</dt><dd class="text-slate-900">{{ signature.signed_at|date:"d/m/Y H:i" }}</dd></div>
                 <div class="flex justify-between py-2"><dt class="text-slate-500">Código</dt><dd class="font-mono text-slate-900">{{ signature.verification_code }}</dd></div>
                 {% if show_title %}<div class="flex justify-between py-2"><dt class="text-slate-500">Documento</dt><dd class="text-slate-900">{{ signature.document.title }}</dd></div>{% endif %}

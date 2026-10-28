@@ -44,24 +44,9 @@ class Document(models.Model):
         db_index=True,
     )
 
-    # Ubicación de firma (borrador). Normalizado 0..1, origen arriba-izquierda,
-    # respecto del recuadro visible de la página. Se resuelve a puntos al firmar.
-    placement_page = models.PositiveIntegerField(null=True, blank=True)
-    placement_x = models.FloatField(null=True, blank=True)
-    placement_y = models.FloatField(null=True, blank=True)
-    placement_w = models.FloatField(null=True, blank=True)
-    placement_h = models.FloatField(null=True, blank=True)
-    placement_rotation = models.IntegerField(default=0)
+    # Las ubicaciones de firma (borrador) viven en SignaturePlacement.
     qr_mode = models.CharField(
         max_length=4, choices=QrMode.choices, default=QrMode.URL
-    )
-    # Imagen de firma elegida para el sello (None = la predeterminada del perfil).
-    signature_image = models.ForeignKey(
-        "accounts.SignatureImage",
-        null=True,
-        blank=True,
-        on_delete=models.SET_NULL,
-        related_name="+",
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -77,10 +62,39 @@ class Document(models.Model):
 
     @property
     def has_placement(self) -> bool:
-        return None not in (
-            self.placement_page,
-            self.placement_x,
-            self.placement_y,
-            self.placement_w,
-            self.placement_h,
-        )
+        return self.placements.exists()
+
+
+class SignaturePlacement(models.Model):
+    """Un bloque de firma ubicado sobre el documento (puede haber varios).
+
+    Posición normalizada 0..1, origen arriba-izquierda, respecto del recuadro
+    visible de la página. Se resuelve a puntos PDF al firmar.
+    """
+
+    document = models.ForeignKey(
+        Document, on_delete=models.CASCADE, related_name="placements"
+    )
+    # Firma a estampar (None = la predeterminada del perfil al momento de firmar).
+    signature_image = models.ForeignKey(
+        "accounts.SignatureImage",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    page = models.PositiveIntegerField()
+    x = models.FloatField()
+    y = models.FloatField()
+    w = models.FloatField()
+    h = models.FloatField()
+    rotation = models.IntegerField(default=0)
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["order", "pk"]
+        verbose_name = "ubicación de firma"
+        verbose_name_plural = "ubicaciones de firma"
+
+    def __str__(self):
+        return f"{self.document} · pág. {self.page}"

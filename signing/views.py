@@ -8,7 +8,6 @@ from django.http import FileResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
-from accounts.models import SignatureImage
 from documents.models import Document
 
 from .models import AuditEvent, Signature
@@ -50,22 +49,25 @@ def sign_view(request, doc_id):
 
     profile = getattr(request.user, "signature_profile", None)
     firmas = list(profile.images.all()) if profile else []
+    own = {f.pk: f for f in firmas}
+    placements = list(doc.placements.all())
 
     if request.method == "POST":
-        image = None
-        image_id = request.POST.get("signature_image")
-        if image_id:
-            image = SignatureImage.objects.filter(
-                pk=image_id, profile__user=request.user
-            ).first()
+        images = {}
+        for placement in placements:
+            value = request.POST.get(f"firma_{placement.pk}")
+            if not value:
+                continue
+            image = own.get(int(value)) if value.isdigit() else None
             if image is None:
                 messages.error(request, "La firma elegida no es válida.")
                 return redirect("signing:sign", doc_id=doc.pk)
+            images[placement.pk] = image
         try:
             signature = sign_document(
                 doc,
                 request.user,
-                signature_image=image,
+                images=images,
                 ip=_client_ip(request),
                 user_agent=request.META.get("HTTP_USER_AGENT", ""),
             )
@@ -75,18 +77,15 @@ def sign_view(request, doc_id):
         messages.success(request, "Documento firmado correctamente.")
         return redirect("signing:result", pk=signature.pk)
 
-    seleccionada = next(
-        (f for f in firmas if f.pk == doc.signature_image_id), None
-    ) or (profile.default_image if profile else None)
+    default = profile.default_image if profile else None
+    bloques = [
+        {"placement": p, "firma": own.get(p.signature_image_id) or default}
+        for p in placements
+    ]
     return render(
         request,
         "signing/sign_confirm.html",
-        {
-            "documento": doc,
-            "perfil": profile,
-            "firmas": firmas,
-            "firma_seleccionada": seleccionada,
-        },
+        {"documento": doc, "perfil": profile, "firmas": firmas, "bloques": bloques},
     )
 
 
