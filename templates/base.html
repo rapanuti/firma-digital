@@ -6,8 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Firma Digital{% endblock %}</title>
 
-    {# MVP: Tailwind por Play CDN. En producción se compila con el CLI standalone
-       (ver recomendaciones de despliegue) para no depender de un CDN externo. #}
+    {% comment %}MVP: Tailwind por Play CDN. En producción se compila con el CLI standalone
+       (ver recomendaciones de despliegue) para no depender de un CDN externo.{% endcomment %}
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
