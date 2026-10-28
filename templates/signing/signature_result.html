@@ -18,8 +18,12 @@
         <div>
             <h1 class="text-xl font-semibold text-slate-900">{{ firma.document.title }}</h1>
             <dl class="mt-4 space-y-2 text-sm">
-                <div class="flex justify-between"><dt class="text-slate-500">Firmante</dt><dd class="text-slate-900">{{ firma.signer_name }}</dd></div>
-                <div class="flex justify-between"><dt class="text-slate-500">C.I.</dt><dd class="text-slate-900">{{ firma.signer_id_document }}</dd></div>
+                {% for sello in firma.seals.all %}
+                    <div class="flex justify-between gap-4">
+                        <dt class="text-slate-500">{% if firma.seals.count > 1 %}Firma {{ forloop.counter }} (pág. {{ sello.page_number }}){% else %}Firmante{% endif %}</dt>
+                        <dd class="text-right text-slate-900">{{ sello.signer_name }}<br><span class="text-slate-500">C.I. {{ sello.signer_id_document }}</span></dd>
+                    </div>
+                {% endfor %}
                 <div class="flex justify-between"><dt class="text-slate-500">Fecha</dt><dd class="text-slate-900">{{ firma.signed_at|date:"d/m/Y H:i" }}</dd></div>
                 <div class="flex justify-between"><dt class="text-slate-500">Código</dt><dd class="font-mono text-slate-900">{{ firma.verification_code }}</dd></div>
             </dl>

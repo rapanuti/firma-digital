@@ -192,8 +192,9 @@ def test_placement_api_guarda(client, firmante, pdf_carta_bytes):
     )
     assert resp.status_code == 200
     doc.refresh_from_db()
-    assert doc.placement_page == 1
-    assert abs(doc.placement_x - 0.1) < 1e-6
+    placement = doc.placements.get()
+    assert placement.page == 1
+    assert abs(placement.x - 0.1) < 1e-6
     assert doc.has_placement is True
 
 
@@ -274,5 +275,37 @@ def test_placement_api_guarda_firma_elegida(client, firmante, otro, png_firma, p
     resp = client.post(url, data=json.dumps({**base, "signature_image": propia.pk}),
                        content_type="application/json")
     assert resp.status_code == 200
-    doc.refresh_from_db()
-    assert doc.signature_image == propia
+    assert doc.placements.get().signature_image == propia
+
+
+def test_placement_api_guarda_varios_bloques(client, firmante, png_firma, pdf_carta_bytes):
+    doc = _make_doc_local(firmante, pdf_carta_bytes)
+    firma = _con_perfil(firmante, png_firma).default_image
+    client.login(username="ana", password=PASSWORD)
+    url = reverse("documents:placement_api", args=[doc.pk])
+    body = {
+        "qr_mode": "data",
+        "placements": [
+            {"page": 1, "fx": 0.1, "fy": 0.1, "fw": 0.3, "fh": 0.1, "signature_image": firma.pk},
+            {"page": 1, "fx": 0.5, "fy": 0.8, "fw": 0.3, "fh": 0.1},
+        ],
+    }
+    resp = client.post(url, data=json.dumps(body), content_type="application/json")
+    assert resp.status_code == 200
+    assert doc.placements.count() == 2
+
+    # Guardar de nuevo reemplaza (no acumula) los bloques.
+    body["placements"] = body["placements"][:1]
+    client.post(url, data=json.dumps(body), content_type="application/json")
+    assert doc.placements.count() == 1
+
+
+def test_placement_api_rechaza_lista_vacia(client, firmante, pdf_carta_bytes):
+    doc = _make_doc_local(firmante, pdf_carta_bytes)
+    client.login(username="ana", password=PASSWORD)
+    resp = client.post(
+        reverse("documents:placement_api", args=[doc.pk]),
+        data=json.dumps({"placements": []}),
+        content_type="application/json",
+    )
+    assert resp.status_code == 400

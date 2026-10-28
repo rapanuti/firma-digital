@@ -46,6 +46,8 @@ class Signature(models.Model):
         on_delete=models.SET_NULL,
         related_name="+",
     )
+    # Los campos signer_* y de posición anteriores corresponden al primer sello;
+    # la lista completa de sellos estampados está en SignatureSeal.
 
     # Archivos e integridad.
     signed_file = models.FileField(upload_to=signed_pdf_path)
@@ -88,6 +90,42 @@ class Signature(models.Model):
     def verification_url(self) -> str:
         base = settings.VERIFICATION_BASE_URL.rstrip("/")
         return f"{base}/verificar/{self.verification_code}/"
+
+
+class SignatureSeal(models.Model):
+    """Sello estampado dentro de una firma (una firma puede tener varios).
+
+    Snapshot inmutable de los datos impresos en cada sello: todos comparten el
+    código de verificación y el PDF firmado de su ``Signature``.
+    """
+
+    signature = models.ForeignKey(
+        Signature, on_delete=models.CASCADE, related_name="seals"
+    )
+    signature_image = models.ForeignKey(
+        "accounts.SignatureImage",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    signer_name = models.CharField(max_length=150)
+    signer_id_document = models.CharField(max_length=30)
+    signer_title = models.CharField(max_length=150, blank=True)
+    page_number = models.PositiveIntegerField()
+    pos_x = models.FloatField()
+    pos_y = models.FloatField()
+    width = models.FloatField()
+    height = models.FloatField()
+    order = models.PositiveIntegerField(default=0)
+
+    class Meta:
+        ordering = ["order", "pk"]
+        verbose_name = "sello"
+        verbose_name_plural = "sellos"
+
+    def __str__(self):
+        return f"{self.signer_name} · pág. {self.page_number}"
 
 
 class AuditEvent(models.Model):

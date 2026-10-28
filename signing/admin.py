@@ -1,10 +1,18 @@
 from django.contrib import admin
 
-from .models import AuditEvent, Signature
+from .models import AuditEvent, Signature, SignatureSeal
+
+
+class SignatureSealInline(admin.TabularInline):
+    model = SignatureSeal
+    extra = 0
+    can_delete = False
+    readonly_fields = [f.name for f in SignatureSeal._meta.fields]
 
 
 @admin.register(Signature)
 class SignatureAdmin(admin.ModelAdmin):
+    inlines = [SignatureSealInline]
     list_display = ("verification_code", "signer_name", "document", "status", "signed_at")
     list_filter = ("status",)
     search_fields = ("verification_code", "signer_name", "signer_id_document")

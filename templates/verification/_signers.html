@@ -1,0 +1,9 @@
+{% for s in signers %}
+    <div class="py-2">
+        <dt class="text-slate-500">{% if signers|length > 1 %}Firmante {{ forloop.counter }}{% else %}Firmante{% endif %}</dt>
+        <dd class="mt-0.5 flex flex-wrap justify-between gap-x-4 text-slate-900">
+            <span>{{ s.name }}{% if s.title %} <span class="text-slate-500">· {{ s.title }}</span>{% endif %}</span>
+            <span class="font-mono">{{ s.masked_ci }}</span>
+        </dd>
+    </div>
+{% endfor %}

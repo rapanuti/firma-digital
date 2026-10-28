@@ -7,6 +7,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.http import FileResponse, HttpResponseBadRequest, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -17,7 +18,7 @@ from django.views.generic import CreateView, DetailView, ListView
 from accounts.models import SignatureImage, SignatureProfile
 
 from .forms import DocumentUploadForm
-from .models import Document
+from .models import Document, SignaturePlacement
 from .utils import pdf_page_count, sha256_of
 
 
@@ -122,72 +123,105 @@ def placement_view(request, pk):
         return redirect("accounts:signature_profile_edit")
 
     firmas = list(profile.images.all())
-    seleccionada = next(
-        (f for f in firmas if f.pk == doc.signature_image_id), None
-    ) or profile.default_image
+    placements = [
+        {
+            "page": p.page, "x": p.x, "y": p.y, "w": p.w, "h": p.h,
+            "rotation": p.rotation, "signature_image": p.signature_image_id,
+        }
+        for p in doc.placements.all()
+    ]
 
     context = {
         "documento": doc,
         "perfil": profile,
         "firmas": firmas,
-        "firma_seleccionada": seleccionada,
+        "firma_seleccionada": profile.default_image,
+        "placements": placements,
         "pdf_url": reverse("documents:download_original", args=[doc.pk]),
     }
     return render(request, "documents/document_place.html", context)
 
 
+MAX_PLACEMENTS = 20
+
+
+def _parse_placement(item, doc):
+    """Valida un bloque recibido del editor; devuelve dict o lanza ValueError."""
+    page = int(item["page"])
+    fx, fy = float(item["fx"]), float(item["fy"])
+    fw, fh = float(item["fw"]), float(item["fh"])
+    rotation = int(item.get("rotation", 0))
+    image_id = item.get("signature_image")
+
+    if not (1 <= page <= (doc.page_count or 1)):
+        raise ValueError("Página fuera de rango.")
+    if any(not (0.0 <= v <= 1.0) for v in (fx, fy, fw, fh)):
+        raise ValueError("Coordenadas fuera de rango.")
+    if fw <= 0 or fh <= 0:
+        raise ValueError("Tamaño inválido.")
+    if fx + fw > 1.0001 or fy + fh > 1.0001:
+        raise ValueError("El bloque se sale de la página.")
+    if rotation not in (0, 90, 180, 270):
+        rotation = 0
+    return {
+        "page": page, "x": fx, "y": fy, "w": fw, "h": fh, "rotation": rotation,
+        "image_id": int(image_id) if image_id is not None else None,
+    }
+
+
 @login_required
 @require_POST
 def placement_api(request, pk):
-    """Guarda la posición normalizada del bloque de firma (JSON)."""
+    """Guarda los bloques de firma del documento (JSON).
+
+    Formato: ``{"qr_mode": "url", "placements": [{page, fx, fy, fw, fh, rotation,
+    signature_image}, ...]}``. También acepta un único bloque en el nivel raíz.
+    Reemplaza todos los bloques anteriores.
+    """
     doc = _get_document_or_403(request, pk)
     if doc.status != Document.Status.PENDING:
         return HttpResponseBadRequest("El documento no está pendiente.")
 
     try:
         data = json.loads(request.body.decode("utf-8"))
-        page = int(data["page"])
-        fx, fy = float(data["fx"]), float(data["fy"])
-        fw, fh = float(data["fw"]), float(data["fh"])
-        rotation = int(data.get("rotation", 0))
-        qr_mode = str(data.get("qr_mode", Document.QrMode.URL))
-        image_id = data.get("signature_image")
-        image_id = int(image_id) if image_id is not None else None
-    except (KeyError, ValueError, TypeError, json.JSONDecodeError):
+        items = data["placements"] if "placements" in data else [data]
+        if not isinstance(items, list):
+            raise ValueError("Datos inválidos.")
+        parsed = [_parse_placement(item, doc) for item in items]
+    except ValueError as exc:
+        msg = str(exc) if str(exc).endswith(".") else "Datos inválidos."
+        return HttpResponseBadRequest(msg)
+    except (KeyError, TypeError, AttributeError, json.JSONDecodeError):
         return HttpResponseBadRequest("Datos inválidos.")
 
+    if not parsed:
+        return HttpResponseBadRequest("Agrega al menos una firma.")
+    if len(parsed) > MAX_PLACEMENTS:
+        return HttpResponseBadRequest(f"Máximo {MAX_PLACEMENTS} firmas por documento.")
+
+    image_ids = {p["image_id"] for p in parsed if p["image_id"] is not None}
+    own_images = {
+        img.pk: img
+        for img in SignatureImage.objects.filter(pk__in=image_ids, profile__user=request.user)
+    }
+    if len(own_images) != len(image_ids):
+        return HttpResponseBadRequest("Firma no válida.")
+
+    qr_mode = str(data.get("qr_mode", Document.QrMode.URL))
     if qr_mode not in Document.QrMode.values:
         qr_mode = Document.QrMode.URL
 
-    if not (1 <= page <= (doc.page_count or 1)):
-        return HttpResponseBadRequest("Página fuera de rango.")
-    if any(not (0.0 <= v <= 1.0) for v in (fx, fy, fw, fh)):
-        return HttpResponseBadRequest("Coordenadas fuera de rango.")
-    if fw <= 0 or fh <= 0:
-        return HttpResponseBadRequest("Tamaño inválido.")
-    if fx + fw > 1.0001 or fy + fh > 1.0001:
-        return HttpResponseBadRequest("El bloque se sale de la página.")
-    if rotation not in (0, 90, 180, 270):
-        rotation = 0
-
-    image = None
-    if image_id is not None:
-        image = SignatureImage.objects.filter(
-            pk=image_id, profile__user=request.user
-        ).first()
-        if image is None:
-            return HttpResponseBadRequest("Firma no válida.")
-
-    doc.placement_page = page
-    doc.placement_x, doc.placement_y = fx, fy
-    doc.placement_w, doc.placement_h = fw, fh
-    doc.placement_rotation = rotation
-    doc.qr_mode = qr_mode
-    doc.signature_image = image
-    doc.save(
-        update_fields=[
-            "placement_page", "placement_x", "placement_y",
-            "placement_w", "placement_h", "placement_rotation", "qr_mode", "signature_image", "updated_at",
-        ]
-    )
-    return JsonResponse({"ok": True})
+    with transaction.atomic():
+        doc.placements.all().delete()
+        SignaturePlacement.objects.bulk_create(
+            SignaturePlacement(
+                document=doc,
+                signature_image=own_images.get(p["image_id"]),
+                page=p["page"], x=p["x"], y=p["y"], w=p["w"], h=p["h"],
+                rotation=p["rotation"], order=i,
+            )
+            for i, p in enumerate(parsed)
+        )
+        doc.qr_mode = qr_mode
+        doc.save(update_fields=["qr_mode", "updated_at"])
+    return JsonResponse({"ok": True, "count": len(parsed)})

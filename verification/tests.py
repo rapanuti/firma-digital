@@ -33,9 +33,7 @@ def _firma(owner, png, pdf_bytes):
         original_sha256=hashlib.sha256(pdf_bytes).hexdigest(),
         file_size=len(pdf_bytes), page_count=1,
     )
-    doc.placement_page = 1
-    doc.placement_x, doc.placement_y = 0.1, 0.6
-    doc.placement_w, doc.placement_h = 0.6, 0.25
+    doc.placements.create(page=1, x=0.1, y=0.6, w=0.6, h=0.25)
     doc.save()
     return sign_document(doc, owner)
 

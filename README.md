@@ -18,9 +18,9 @@ una firma criptográfica PAdES/PKI. En concreto:
 ## Características
 
 - **Usuarios y roles**: login/logout, perfil, roles administrador y firmante.
-- **Perfil de firma**: varias imágenes manuscritas (PNG/JPG validadas) con una predeterminada, C.I., correo, cargo, activo/inactivo. Al ubicar y al confirmar se elige qué firma aplicar.
+- **Perfil de firma**: varias imágenes manuscritas (PNG/JPG validadas) con una predeterminada, C.I., correo, cargo, activo/inactivo. Cada firma tiene sus propios datos (nombre, C.I., correo, cargo).
 - **Documentos**: subida de PDF (validado), hash SHA-256 del original, listado/detalle, descarga protegida.
-- **Ubicación visual**: visor PDF.js, bloque arrastrable/redimensionable, coordenadas normalizadas.
+- **Ubicación visual**: visor PDF.js, varios bloques arrastrables/redimensionables (uno por firma, en cualquier página), coordenadas normalizadas.
 - **Generación del PDF firmado**: sello (firma + texto + QR) con PyMuPDF, código único, hash del firmado.
 - **Verificación pública**: `/verificar/<código>` con estado válida/anulada/no encontrada, C.I.
   enmascarada y comparación de hash por carga de archivo.

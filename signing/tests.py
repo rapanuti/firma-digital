@@ -42,11 +42,7 @@ def _setup(owner, png, pdf_bytes, *, with_placement=True, active=True):
         page_count=1,
     )
     if with_placement:
-        doc.placement_page = 1
-        doc.placement_x, doc.placement_y = 0.1, 0.6
-        doc.placement_w, doc.placement_h = 0.6, 0.25
-        doc.placement_rotation = 0
-        doc.save()
+        doc.placements.create(page=1, x=0.1, y=0.6, w=0.6, h=0.25)
     return doc
 
 
@@ -290,19 +286,21 @@ def test_sign_usa_predeterminada_por_defecto(db, firmante, png_firma, pdf_carta_
 def test_sign_usa_firma_elegida_en_documento(db, firmante, png_firma, pdf_carta_bytes):
     doc = _setup(firmante, png_firma, pdf_carta_bytes)
     rubrica = _nueva_firma(firmante.signature_profile, name="Rúbrica", image=_otra_png())
-    doc.signature_image = rubrica
-    doc.save(update_fields=["signature_image"])
+    doc.placements.update(signature_image=rubrica)
     sig = sign_document(doc, firmante)
     assert sig.signature_image == rubrica
     ev = AuditEvent.objects.get(signature=sig, action=AuditEvent.Action.SIGNED)
-    assert ev.metadata["signature_image"] == "Rúbrica"
+    assert ev.metadata["seals"][0]["signature_image"] == "Rúbrica"
 
 
 def test_sign_rechaza_firma_ajena(db, firmante, otro, png_firma, pdf_carta_bytes):
     doc = _setup(firmante, png_firma, pdf_carta_bytes)
     _setup(otro, _otra_png(), pdf_carta_bytes)
     with pytest.raises(SigningError):
-        sign_document(doc, firmante, signature_image=otro.signature_profile.default_image)
+        sign_document(
+            doc, firmante,
+            images={doc.placements.get().pk: otro.signature_profile.default_image},
+        )
 
 
 def test_sign_view_aplica_firma_elegida(client, firmante, png_firma, pdf_carta_bytes):
@@ -313,7 +311,10 @@ def test_sign_view_aplica_firma_elegida(client, firmante, png_firma, pdf_carta_b
     resp = client.get(reverse("signing:sign", args=[doc.pk]))
     assert b"R\xc3\xbabrica" in resp.content
 
-    resp = client.post(reverse("signing:sign", args=[doc.pk]), {"signature_image": rubrica.pk})
+    placement = doc.placements.get()
+    resp = client.post(
+        reverse("signing:sign", args=[doc.pk]), {f"firma_{placement.pk}": rubrica.pk}
+    )
     assert resp.status_code == 302
     assert Signature.objects.get(document=doc).signature_image == rubrica
 
@@ -328,7 +329,7 @@ def test_sello_usa_datos_de_la_firma_elegida(db, firmante, png_firma, pdf_carta_
         id_document="J-40123456-7",
         title="Representante legal",
     )
-    sig = sign_document(doc, firmante, signature_image=representante)
+    sig = sign_document(doc, firmante, images={doc.placements.get().pk: representante})
 
     assert sig.signer_name == "Inversiones Ana C.A."
     assert sig.signer_id_document == "J-40123456-7"
@@ -341,3 +342,91 @@ def test_sello_usa_datos_de_la_firma_elegida(db, firmante, png_firma, pdf_carta_
         assert "Ana Pérez" not in text
     finally:
         pdf.close()
+
+
+# --- Varias firmas en un mismo documento ---------------------------------
+
+
+def _pdf_dos_paginas():
+    doc = fitz.open()
+    doc.new_page(width=612, height=792)
+    doc.new_page(width=612, height=792)
+    data = doc.tobytes()
+    doc.close()
+    return data
+
+
+def test_varias_firmas_mismo_instante(db, firmante, png_firma):
+    pdf_bytes = _pdf_dos_paginas()
+    doc = _setup(firmante, png_firma, pdf_bytes, with_placement=False)
+    doc.page_count = 2
+    doc.save(update_fields=["page_count"])
+    profile = firmante.signature_profile
+    cesare = _nueva_firma(
+        profile, name="Cesare", image=_otra_png(),
+        full_name="Cesare Domenighini", id_document="V-111",
+    )
+    jesus = _nueva_firma(
+        profile, name="Jesus", image=_otra_png(),
+        full_name="Jesus Lopez", id_document="V-222",
+    )
+    doc.placements.create(page=1, x=0.05, y=0.7, w=0.45, h=0.2, order=0)
+    doc.placements.create(page=1, x=0.5, y=0.7, w=0.45, h=0.2, signature_image=cesare, order=1)
+    doc.placements.create(page=2, x=0.1, y=0.1, w=0.5, h=0.2, signature_image=jesus, order=2)
+
+    sig = sign_document(doc, firmante)
+
+    # Un solo PDF, un solo código y un sello por ubicación.
+    assert Signature.objects.filter(document=doc).count() == 1
+    seals = list(sig.seals.all())
+    assert [s.signer_name for s in seals] == ["Ana Pérez", "Cesare Domenighini", "Jesus Lopez"]
+    assert [s.page_number for s in seals] == [1, 1, 2]
+
+    pdf = fitz.open(stream=_read(sig.signed_file), filetype="pdf")
+    try:
+        p1, p2 = pdf[0].get_text(), pdf[1].get_text()
+        assert "Ana Pérez" in p1 and "Cesare Domenighini" in p1
+        assert "Jesus Lopez" in p2 and "Jesus Lopez" not in p1
+        assert p1.count(sig.verification_code) == 2
+        assert sig.verification_code in p2
+    finally:
+        pdf.close()
+
+    ev = AuditEvent.objects.get(signature=sig, action=AuditEvent.Action.SIGNED)
+    assert len(ev.metadata["seals"]) == 3
+
+
+def test_confirmar_elige_firma_por_bloque(client, firmante, png_firma, pdf_carta_bytes):
+    doc = _setup(firmante, png_firma, pdf_carta_bytes)
+    segundo = doc.placements.create(page=1, x=0.1, y=0.1, w=0.4, h=0.2, order=1)
+    primero = doc.placements.order_by("order", "pk").first()
+    otra = _nueva_firma(
+        firmante.signature_profile, name="Otra", image=_otra_png(),
+        full_name="Otra Persona", id_document="V-9",
+    )
+    client.login(username="ana", password=PASSWORD)
+    resp = client.get(reverse("signing:sign", args=[doc.pk]))
+    assert resp.content.count(b"<select") == 2
+
+    client.post(
+        reverse("signing:sign", args=[doc.pk]),
+        {f"firma_{primero.pk}": firmante.signature_profile.default_image.pk,
+         f"firma_{segundo.pk}": otra.pk},
+    )
+    sig = Signature.objects.get(document=doc)
+    assert [s.signer_name for s in sig.seals.all()] == ["Ana Pérez", "Otra Persona"]
+
+
+def test_verificacion_publica_lista_firmantes(client, firmante, png_firma, pdf_carta_bytes):
+    doc = _setup(firmante, png_firma, pdf_carta_bytes)
+    otra = _nueva_firma(
+        firmante.signature_profile, name="Otra", image=_otra_png(),
+        full_name="Otra Persona", id_document="V-98765432",
+    )
+    doc.placements.create(page=1, x=0.1, y=0.1, w=0.4, h=0.2, signature_image=otra, order=1)
+    sig = sign_document(doc, firmante)
+
+    resp = client.get(reverse("verification:detail", args=[sig.verification_code]))
+    assert b"Ana P" in resp.content and b"Otra Persona" in resp.content
+    assert b"Firmante 2" in resp.content
+    assert b"V-98765432" not in resp.content  # C.I. enmascarada
