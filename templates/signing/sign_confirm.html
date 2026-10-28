@@ -12,10 +12,6 @@
         <dl class="space-y-2 text-sm">
             <div class="flex justify-between"><dt class="text-slate-500">Documento</dt><dd class="text-slate-900">{{ documento.title }}</dd></div>
             <div class="flex justify-between"><dt class="text-slate-500">Página de firma</dt><dd class="text-slate-900">{{ documento.placement_page }}</dd></div>
-            {% if perfil %}
-                <div class="flex justify-between"><dt class="text-slate-500">Firmante</dt><dd class="text-slate-900">{{ perfil.full_name }}</dd></div>
-                <div class="flex justify-between"><dt class="text-slate-500">C.I.</dt><dd class="text-slate-900">{{ perfil.id_document }}</dd></div>
-            {% endif %}
         </dl>
     </div>
 
@@ -34,6 +30,7 @@
                                 {% if img.is_default %}<span class="ml-auto text-xs text-slate-400">predeterminada</span>{% endif %}
                             </span>
                             <img src="{{ img.image.url }}" alt="{{ img.name }}" class="h-16 w-full object-contain">
+                            <span class="text-xs text-slate-500">{{ img.full_name }} · C.I. {{ img.id_document }}{% if img.title %}<br>{{ img.title }}{% endif %}</span>
                         </label>
                     {% endfor %}
                 </div>

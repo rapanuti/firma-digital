@@ -16,6 +16,11 @@ urlpatterns = [
     path("perfil-firma/editar/", views.signature_profile_edit, name="signature_profile_edit"),
     path("perfil-firma/firmas/agregar/", views.signature_image_add, name="signature_image_add"),
     path(
+        "perfil-firma/firmas/<int:pk>/editar/",
+        views.signature_image_edit,
+        name="signature_image_edit",
+    ),
+    path(
         "perfil-firma/firmas/<int:pk>/predeterminada/",
         views.signature_image_default,
         name="signature_image_default",

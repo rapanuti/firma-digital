@@ -12,12 +12,21 @@ from signing.services import sign_document
 from verification.utils import mask_id_document
 
 
+def _nueva_firma(profile, **kwargs):
+    """Firma con los datos del perfil (como se crean desde la interfaz)."""
+    from accounts.models import SignatureImage
+
+    img = SignatureImage.from_profile(profile, **kwargs)
+    img.save()
+    return img
+
+
 def _firma(owner, png, pdf_bytes):
     profile = SignatureProfile.objects.create(
         user=owner, full_name="Ana Pérez", id_document="V-12345678",
         email="a@e.com", is_active=True,
     )
-    profile.images.create(image=png, is_default=True)
+    _nueva_firma(profile, image=png, is_default=True)
     doc = Document.objects.create(
         owner=owner, title="Contrato",
         original_file=SimpleUploadedFile("d.pdf", pdf_bytes, content_type="application/pdf"),

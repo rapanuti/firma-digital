@@ -12,6 +12,15 @@ from documents.models import Document
 from signing.models import AuditEvent, Signature
 from signing.services import SigningError, sign_document, void_signature
 
+def _nueva_firma(profile, **kwargs):
+    """Firma con los datos del perfil (como se crean desde la interfaz)."""
+    from accounts.models import SignatureImage
+
+    img = SignatureImage.from_profile(profile, **kwargs)
+    img.save()
+    return img
+
+
 PASSWORD = "clave-segura-123"
 
 
@@ -23,7 +32,7 @@ def _setup(owner, png, pdf_bytes, *, with_placement=True, active=True):
         email="a@e.com",
         is_active=active,
     )
-    profile.images.create(image=png, is_default=True)
+    _nueva_firma(profile, image=png, is_default=True)
     doc = Document.objects.create(
         owner=owner,
         title="Contrato",
@@ -280,7 +289,7 @@ def test_sign_usa_predeterminada_por_defecto(db, firmante, png_firma, pdf_carta_
 
 def test_sign_usa_firma_elegida_en_documento(db, firmante, png_firma, pdf_carta_bytes):
     doc = _setup(firmante, png_firma, pdf_carta_bytes)
-    rubrica = firmante.signature_profile.images.create(name="Rúbrica", image=_otra_png())
+    rubrica = _nueva_firma(firmante.signature_profile, name="Rúbrica", image=_otra_png())
     doc.signature_image = rubrica
     doc.save(update_fields=["signature_image"])
     sig = sign_document(doc, firmante)
@@ -298,7 +307,7 @@ def test_sign_rechaza_firma_ajena(db, firmante, otro, png_firma, pdf_carta_bytes
 
 def test_sign_view_aplica_firma_elegida(client, firmante, png_firma, pdf_carta_bytes):
     doc = _setup(firmante, png_firma, pdf_carta_bytes)
-    rubrica = firmante.signature_profile.images.create(name="Rúbrica", image=_otra_png())
+    rubrica = _nueva_firma(firmante.signature_profile, name="Rúbrica", image=_otra_png())
     client.login(username="ana", password=PASSWORD)
 
     resp = client.get(reverse("signing:sign", args=[doc.pk]))
@@ -307,3 +316,28 @@ def test_sign_view_aplica_firma_elegida(client, firmante, png_firma, pdf_carta_b
     resp = client.post(reverse("signing:sign", args=[doc.pk]), {"signature_image": rubrica.pk})
     assert resp.status_code == 302
     assert Signature.objects.get(document=doc).signature_image == rubrica
+
+
+def test_sello_usa_datos_de_la_firma_elegida(db, firmante, png_firma, pdf_carta_bytes):
+    doc = _setup(firmante, png_firma, pdf_carta_bytes)
+    representante = _nueva_firma(
+        firmante.signature_profile,
+        name="Representante",
+        image=_otra_png(),
+        full_name="Inversiones Ana C.A.",
+        id_document="J-40123456-7",
+        title="Representante legal",
+    )
+    sig = sign_document(doc, firmante, signature_image=representante)
+
+    assert sig.signer_name == "Inversiones Ana C.A."
+    assert sig.signer_id_document == "J-40123456-7"
+    assert sig.signer_title == "Representante legal"
+    pdf = fitz.open(stream=_read(sig.signed_file), filetype="pdf")
+    try:
+        text = pdf[0].get_text()
+        assert "Inversiones Ana C.A." in text
+        assert "J-40123456-7" in text
+        assert "Ana Pérez" not in text
+    finally:
+        pdf.close()

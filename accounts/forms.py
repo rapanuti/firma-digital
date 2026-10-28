@@ -109,25 +109,42 @@ class SignatureProfileForm(forms.ModelForm):
         upload = self.cleaned_data.get("signature_image")
         if not upload:
             return None
-        img = SignatureImage.objects.create(
-            profile=profile,
+        img = SignatureImage.from_profile(
+            profile,
             name=self.cleaned_data.get("signature_name") or "Firma principal",
             image=upload,
         )
+        img.save()
         if not self.has_images:
             img.make_default()
         return img
 
 
 class SignatureImageForm(forms.ModelForm):
-    """Alta de una imagen de firma adicional."""
+    """Alta o edición de una firma: imagen + datos que aparecen en el sello."""
 
     class Meta:
         model = SignatureImage
-        fields = ["name", "image", "is_default"]
+        fields = [
+            "name",
+            "image",
+            "full_name",
+            "id_document",
+            "email",
+            "title",
+            "is_default",
+        ]
         widgets = {
             "name": forms.TextInput(
-                attrs={"class": INPUT_CLASSES, "placeholder": "Ej.: Firma completa, Rúbrica"}
+                attrs={"class": INPUT_CLASSES, "placeholder": "Ej.: Personal, Representante legal"}
+            ),
+            "full_name": forms.TextInput(attrs={"class": INPUT_CLASSES}),
+            "id_document": forms.TextInput(
+                attrs={"class": INPUT_CLASSES, "placeholder": "V-12345678"}
+            ),
+            "email": forms.EmailInput(attrs={"class": INPUT_CLASSES}),
+            "title": forms.TextInput(
+                attrs={"class": INPUT_CLASSES, "placeholder": "Cargo (opcional)"}
             ),
             "image": forms.ClearableFileInput(attrs=IMAGE_INPUT_ATTRS),
             "is_default": forms.CheckboxInput(
