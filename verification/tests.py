@@ -13,10 +13,11 @@ from verification.utils import mask_id_document
 
 
 def _firma(owner, png, pdf_bytes):
-    SignatureProfile.objects.create(
+    profile = SignatureProfile.objects.create(
         user=owner, full_name="Ana Pérez", id_document="V-12345678",
-        email="a@e.com", signature_image=png, is_active=True,
+        email="a@e.com", is_active=True,
     )
+    profile.images.create(image=png, is_default=True)
     doc = Document.objects.create(
         owner=owner, title="Contrato",
         original_file=SimpleUploadedFile("d.pdf", pdf_bytes, content_type="application/pdf"),

@@ -164,7 +164,91 @@ def test_signature_profile_inactiva_no_firma(db, firmante, png_firma):
         full_name="Ana",
         id_document="V-1",
         email="a@e.com",
-        signature_image=png_firma,
         is_active=False,
     )
+    profile.images.create(image=png_firma, is_default=True)
     assert profile.can_sign is False
+
+
+# --- Múltiples firmas ----------------------------------------------------
+
+from accounts.models import SignatureImage  # noqa: E402
+
+
+def _png(name="otra.png"):
+    import io
+
+    from django.core.files.uploadedfile import SimpleUploadedFile
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGBA", (200, 80), (0, 0, 0, 0)).save(buf, "PNG")
+    return SimpleUploadedFile(name, buf.getvalue(), content_type="image/png")
+
+
+def _perfil(user, png):
+    profile = SignatureProfile.objects.create(
+        user=user, full_name="Ana", id_document="V-1", email="a@e.com"
+    )
+    profile.images.create(name="Firma completa", image=png, is_default=True)
+    return profile
+
+
+def test_agregar_segunda_firma(client, firmante, png_firma):
+    profile = _perfil(firmante, png_firma)
+    client.login(username="ana", password=PASSWORD)
+    resp = client.post(
+        reverse("accounts:signature_image_add"),
+        {"name": "Rúbrica", "image": _png()},
+    )
+    assert resp.status_code == 302
+    assert profile.images.count() == 2
+    # La nueva no reemplaza a la predeterminada salvo que se pida.
+    assert profile.default_image.name == "Firma completa"
+
+
+def test_agregar_firma_como_predeterminada(client, firmante, png_firma):
+    profile = _perfil(firmante, png_firma)
+    client.login(username="ana", password=PASSWORD)
+    client.post(
+        reverse("accounts:signature_image_add"),
+        {"name": "Rúbrica", "image": _png(), "is_default": "on"},
+    )
+    assert profile.images.filter(is_default=True).count() == 1
+    assert profile.default_image.name == "Rúbrica"
+
+
+def test_cambiar_predeterminada(client, firmante, png_firma):
+    profile = _perfil(firmante, png_firma)
+    rubrica = profile.images.create(name="Rúbrica", image=_png())
+    client.login(username="ana", password=PASSWORD)
+    client.post(reverse("accounts:signature_image_default", args=[rubrica.pk]))
+    assert profile.default_image == rubrica
+    assert profile.images.filter(is_default=True).count() == 1
+
+
+def test_eliminar_firma_promueve_otra(client, firmante, png_firma):
+    profile = _perfil(firmante, png_firma)
+    principal = profile.default_image
+    rubrica = profile.images.create(name="Rúbrica", image=_png())
+    client.login(username="ana", password=PASSWORD)
+    client.post(reverse("accounts:signature_image_delete", args=[principal.pk]))
+    assert list(profile.images.all()) == [rubrica]
+    rubrica.refresh_from_db()
+    assert rubrica.is_default is True
+
+
+def test_no_eliminar_unica_firma(client, firmante, png_firma):
+    profile = _perfil(firmante, png_firma)
+    client.login(username="ana", password=PASSWORD)
+    client.post(reverse("accounts:signature_image_delete", args=[profile.default_image.pk]))
+    assert profile.images.count() == 1
+
+
+def test_no_gestionar_firma_ajena(client, firmante, otro, png_firma):
+    ajena = _perfil(otro, png_firma).default_image
+    _perfil(firmante, _png())
+    client.login(username="ana", password=PASSWORD)
+    resp = client.post(reverse("accounts:signature_image_delete", args=[ajena.pk]))
+    assert resp.status_code == 404
+    assert SignatureImage.objects.filter(pk=ajena.pk).exists()

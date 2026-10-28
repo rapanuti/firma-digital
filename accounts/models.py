@@ -4,6 +4,8 @@ Se define un usuario custom desde el inicio del proyecto porque cambiar
 AUTH_USER_MODEL después de la primera migración es muy costoso en Django.
 """
 
+import uuid
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
@@ -48,9 +50,9 @@ class User(AbstractUser):
 
 
 def signature_image_path(instance, filename):
-    """Ruta de almacenamiento de la firma manuscrita, por usuario."""
+    """Ruta de almacenamiento de la firma manuscrita (por usuario, nombre único)."""
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else "png"
-    return f"signatures/{instance.user_id}/firma.{ext}"
+    return f"signatures/{instance.profile.user_id}/{uuid.uuid4().hex}.{ext}"
 
 
 class SignatureProfile(models.Model):
@@ -62,12 +64,6 @@ class SignatureProfile(models.Model):
     full_name = models.CharField("nombre completo", max_length=150)
     id_document = models.CharField("documento de identidad", max_length=30)
     email = models.EmailField("correo de firma")
-    signature_image = models.ImageField(
-        "firma manuscrita",
-        upload_to=signature_image_path,
-        validators=[validate_signature_image],
-        help_text="Imagen PNG (preferible con fondo transparente) o JPG.",
-    )
     title = models.CharField("cargo", max_length=150, blank=True)
     is_active = models.BooleanField("firma activa", default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -81,6 +77,43 @@ class SignatureProfile(models.Model):
         return f"Firma de {self.full_name}"
 
     @property
+    def default_image(self):
+        """Firma predeterminada (o la más reciente si ninguna está marcada)."""
+        return self.images.order_by("-is_default", "-created_at").first()
+
+    @property
     def can_sign(self) -> bool:
-        """La firma es utilizable si está activa y tiene imagen."""
-        return self.is_active and bool(self.signature_image)
+        """El perfil es utilizable si está activo y tiene al menos una imagen."""
+        return self.is_active and self.images.exists()
+
+
+class SignatureImage(models.Model):
+    """Imagen de firma manuscrita; un perfil puede tener varias (firma, rúbrica...)."""
+
+    profile = models.ForeignKey(
+        SignatureProfile, on_delete=models.CASCADE, related_name="images"
+    )
+    name = models.CharField("nombre", max_length=80, default="Firma principal")
+    image = models.ImageField(
+        "imagen de firma",
+        upload_to=signature_image_path,
+        validators=[validate_signature_image],
+        help_text="Imagen PNG (preferible con fondo transparente) o JPG.",
+    )
+    is_default = models.BooleanField("predeterminada", default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-is_default", "created_at"]
+        verbose_name = "imagen de firma"
+        verbose_name_plural = "imágenes de firma"
+
+    def __str__(self):
+        return self.name
+
+    def make_default(self):
+        """Marca esta imagen como la predeterminada del perfil (y desmarca las demás)."""
+        self.profile.images.exclude(pk=self.pk).update(is_default=False)
+        if not self.is_default:
+            self.is_default = True
+            self.save(update_fields=["is_default"])

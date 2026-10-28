@@ -16,14 +16,14 @@ PASSWORD = "clave-segura-123"
 
 
 def _setup(owner, png, pdf_bytes, *, with_placement=True, active=True):
-    SignatureProfile.objects.create(
+    profile = SignatureProfile.objects.create(
         user=owner,
         full_name="Ana Pérez",
         id_document="V-12345678",
         email="a@e.com",
-        signature_image=png,
         is_active=active,
     )
+    profile.images.create(image=png, is_default=True)
     doc = Document.objects.create(
         owner=owner,
         title="Contrato",
@@ -257,3 +257,53 @@ def test_auditoria_firmante_solo_lo_suyo(client, firmante, otro, png_firma, pdf_
     assert resp.status_code == 200
     # No debe ver el código de la firma de "otro".
     assert otro_sig.verification_code.encode() not in resp.content
+
+
+# --- Elección de firma ---------------------------------------------------
+
+
+def _otra_png():
+    import io
+
+    from PIL import Image
+
+    buf = io.BytesIO()
+    Image.new("RGBA", (100, 100), (0, 0, 0, 0)).save(buf, "PNG")
+    return SimpleUploadedFile("rubrica.png", buf.getvalue(), content_type="image/png")
+
+
+def test_sign_usa_predeterminada_por_defecto(db, firmante, png_firma, pdf_carta_bytes):
+    doc = _setup(firmante, png_firma, pdf_carta_bytes)
+    sig = sign_document(doc, firmante)
+    assert sig.signature_image == firmante.signature_profile.default_image
+
+
+def test_sign_usa_firma_elegida_en_documento(db, firmante, png_firma, pdf_carta_bytes):
+    doc = _setup(firmante, png_firma, pdf_carta_bytes)
+    rubrica = firmante.signature_profile.images.create(name="Rúbrica", image=_otra_png())
+    doc.signature_image = rubrica
+    doc.save(update_fields=["signature_image"])
+    sig = sign_document(doc, firmante)
+    assert sig.signature_image == rubrica
+    ev = AuditEvent.objects.get(signature=sig, action=AuditEvent.Action.SIGNED)
+    assert ev.metadata["signature_image"] == "Rúbrica"
+
+
+def test_sign_rechaza_firma_ajena(db, firmante, otro, png_firma, pdf_carta_bytes):
+    doc = _setup(firmante, png_firma, pdf_carta_bytes)
+    _setup(otro, _otra_png(), pdf_carta_bytes)
+    with pytest.raises(SigningError):
+        sign_document(doc, firmante, signature_image=otro.signature_profile.default_image)
+
+
+def test_sign_view_aplica_firma_elegida(client, firmante, png_firma, pdf_carta_bytes):
+    doc = _setup(firmante, png_firma, pdf_carta_bytes)
+    rubrica = firmante.signature_profile.images.create(name="Rúbrica", image=_otra_png())
+    client.login(username="ana", password=PASSWORD)
+
+    resp = client.get(reverse("signing:sign", args=[doc.pk]))
+    assert b"R\xc3\xbabrica" in resp.content
+
+    resp = client.post(reverse("signing:sign", args=[doc.pk]), {"signature_image": rubrica.pk})
+    assert resp.status_code == 302
+    assert Signature.objects.get(document=doc).signature_image == rubrica

@@ -14,7 +14,7 @@ from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_POST
 from django.views.generic import CreateView, DetailView, ListView
 
-from accounts.models import SignatureProfile
+from accounts.models import SignatureImage, SignatureProfile
 
 from .forms import DocumentUploadForm
 from .models import Document
@@ -121,11 +121,17 @@ def placement_view(request, pk):
         )
         return redirect("accounts:signature_profile_edit")
 
+    firmas = list(profile.images.all())
+    seleccionada = next(
+        (f for f in firmas if f.pk == doc.signature_image_id), None
+    ) or profile.default_image
+
     context = {
         "documento": doc,
         "perfil": profile,
+        "firmas": firmas,
+        "firma_seleccionada": seleccionada,
         "pdf_url": reverse("documents:download_original", args=[doc.pk]),
-        "signature_image_url": profile.signature_image.url,
     }
     return render(request, "documents/document_place.html", context)
 
@@ -145,6 +151,8 @@ def placement_api(request, pk):
         fw, fh = float(data["fw"]), float(data["fh"])
         rotation = int(data.get("rotation", 0))
         qr_mode = str(data.get("qr_mode", Document.QrMode.URL))
+        image_id = data.get("signature_image")
+        image_id = int(image_id) if image_id is not None else None
     except (KeyError, ValueError, TypeError, json.JSONDecodeError):
         return HttpResponseBadRequest("Datos inválidos.")
 
@@ -162,15 +170,24 @@ def placement_api(request, pk):
     if rotation not in (0, 90, 180, 270):
         rotation = 0
 
+    image = None
+    if image_id is not None:
+        image = SignatureImage.objects.filter(
+            pk=image_id, profile__user=request.user
+        ).first()
+        if image is None:
+            return HttpResponseBadRequest("Firma no válida.")
+
     doc.placement_page = page
     doc.placement_x, doc.placement_y = fx, fy
     doc.placement_w, doc.placement_h = fw, fh
     doc.placement_rotation = rotation
     doc.qr_mode = qr_mode
+    doc.signature_image = image
     doc.save(
         update_fields=[
             "placement_page", "placement_x", "placement_y",
-            "placement_w", "placement_h", "placement_rotation", "qr_mode", "updated_at",
+            "placement_w", "placement_h", "placement_rotation", "qr_mode", "signature_image", "updated_at",
         ]
     )
     return JsonResponse({"ok": True})

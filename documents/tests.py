@@ -166,10 +166,11 @@ def _make_doc_local(owner, pdf_bytes):
 
 
 def _con_perfil(user, png):
-    return SignatureProfile.objects.create(
-        user=user, full_name="Ana", id_document="V-1", email="a@e.com",
-        signature_image=png, is_active=True,
+    profile = SignatureProfile.objects.create(
+        user=user, full_name="Ana", id_document="V-1", email="a@e.com", is_active=True,
     )
+    profile.images.create(image=png, is_default=True)
+    return profile
 
 
 def test_placement_api_guarda(client, firmante, pdf_carta_bytes):
@@ -247,3 +248,22 @@ def test_place_requiere_propiedad(client, firmante, otro, png_firma, pdf_carta_b
     client.login(username="ana", password=PASSWORD)
     resp = client.get(reverse("documents:place", args=[doc.pk]))
     assert resp.status_code == 403  # _get_document_or_403 (igual que la descarga)
+
+
+def test_placement_api_guarda_firma_elegida(client, firmante, otro, png_firma, pdf_carta_bytes):
+    doc = _make_doc_local(firmante, pdf_carta_bytes)
+    propia = _con_perfil(firmante, png_firma).default_image
+    ajena = _con_perfil(otro, png_firma).default_image
+    client.login(username="ana", password=PASSWORD)
+    url = reverse("documents:placement_api", args=[doc.pk])
+    base = {"page": 1, "fx": 0.1, "fy": 0.2, "fw": 0.3, "fh": 0.1}
+
+    resp = client.post(url, data=json.dumps({**base, "signature_image": ajena.pk}),
+                       content_type="application/json")
+    assert resp.status_code == 400
+
+    resp = client.post(url, data=json.dumps({**base, "signature_image": propia.pk}),
+                       content_type="application/json")
+    assert resp.status_code == 200
+    doc.refresh_from_db()
+    assert doc.signature_image == propia

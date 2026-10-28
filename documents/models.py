@@ -55,6 +55,14 @@ class Document(models.Model):
     qr_mode = models.CharField(
         max_length=4, choices=QrMode.choices, default=QrMode.URL
     )
+    # Imagen de firma elegida para el sello (None = la predeterminada del perfil).
+    signature_image = models.ForeignKey(
+        "accounts.SignatureImage",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

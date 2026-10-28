@@ -39,6 +39,13 @@ class Signature(models.Model):
     height = models.FloatField()
     page_rotation = models.IntegerField(default=0)
     qr_mode = models.CharField(max_length=4, default="url")  # "url" o "data"
+    signature_image = models.ForeignKey(
+        "accounts.SignatureImage",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
 
     # Archivos e integridad.
     signed_file = models.FileField(upload_to=signed_pdf_path)
