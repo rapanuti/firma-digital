@@ -22,7 +22,18 @@
     const saveBtn = document.getElementById("save-btn");
     const saveStatus = document.getElementById("save-status");
 
-    blockImg.style.backgroundImage = `url("${cfg.signatureImageUrl}")`;
+    // Firma a aplicar: el bloque muestra la imagen elegida en la lista.
+    const imageRadios = document.getElementsByName("signature_image");
+    function selectedImage() {
+        for (const r of imageRadios) if (r.checked) return r;
+        return imageRadios[0] || null;
+    }
+    function showSelectedImage() {
+        const r = selectedImage();
+        if (r) blockImg.style.backgroundImage = `url("${r.dataset.url}")`;
+    }
+    for (const r of imageRadios) r.addEventListener("change", showSelectedImage);
+    showSelectedImage();
 
     // Modo del QR (URL de verificación vs. datos de la firma)
     const qrRadios = document.getElementsByName("qr_mode");
@@ -155,6 +166,7 @@
                     fx: frac.x, fy: frac.y, fw: frac.w, fh: frac.h,
                     rotation: pageRotation,
                     qr_mode: selectedQrMode(),
+                    signature_image: selectedImage() ? Number(selectedImage().value) : null,
                 }),
             });
             if (resp.ok) {

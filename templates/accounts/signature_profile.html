@@ -3,56 +3,99 @@
 {% block title %}Perfil de firma · Firma Digital{% endblock %}
 
 {% block content %}
-<div class="mx-auto max-w-2xl">
+<div class="mx-auto max-w-3xl">
     <div class="flex items-center justify-between">
         <h1 class="text-xl font-semibold text-slate-900">Perfil de firma</h1>
         <a href="{% url 'accounts:signature_profile_edit' %}"
            class="rounded-md border border-slate-300 px-3 py-1.5 text-sm hover:bg-slate-50">
-            {% if profile %}Editar{% else %}Configurar{% endif %}
+            {% if profile %}Editar datos{% else %}Configurar{% endif %}
         </a>
     </div>
 
     {% if profile %}
-        <div class="mt-6 grid gap-6 sm:grid-cols-3">
-            <div class="sm:col-span-1">
-                <div class="rounded-xl border border-slate-200 bg-white p-4">
-                    <p class="text-xs uppercase tracking-wide text-slate-400 mb-2">Firma manuscrita</p>
-                    {% if profile.signature_image %}
-                        <img src="{{ profile.signature_image.url }}" alt="Firma"
-                             class="max-h-28 w-auto mx-auto"
-                             style="background:repeating-conic-gradient(#f1f5f9 0% 25%, #fff 0% 50%) 50%/16px 16px">
+        <dl class="mt-6 divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
+            <div class="flex justify-between px-4 py-3 text-sm">
+                <dt class="text-slate-500">Nombre completo</dt><dd class="text-slate-900">{{ profile.full_name }}</dd>
+            </div>
+            <div class="flex justify-between px-4 py-3 text-sm">
+                <dt class="text-slate-500">C.I. / Documento</dt><dd class="text-slate-900">{{ profile.id_document }}</dd>
+            </div>
+            <div class="flex justify-between px-4 py-3 text-sm">
+                <dt class="text-slate-500">Correo</dt><dd class="text-slate-900">{{ profile.email }}</dd>
+            </div>
+            <div class="flex justify-between px-4 py-3 text-sm">
+                <dt class="text-slate-500">Cargo</dt><dd class="text-slate-900">{{ profile.title|default:"—" }}</dd>
+            </div>
+            <div class="flex justify-between px-4 py-3 text-sm">
+                <dt class="text-slate-500">Estado</dt>
+                <dd>
+                    {% if profile.is_active %}
+                        <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700 border border-emerald-200">Activa</span>
                     {% else %}
-                        <p class="text-sm text-slate-400">Sin imagen</p>
+                        <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 border border-slate-200">Inactiva</span>
                     {% endif %}
+                </dd>
+            </div>
+        </dl>
+
+        <h2 class="mt-8 text-base font-semibold text-slate-900">Mis firmas</h2>
+        <p class="mt-1 text-sm text-slate-500">Guarda varias firmas (por ejemplo, firma completa y rúbrica) y elige cuál aplicar al firmar cada documento.</p>
+
+        <div class="mt-4 grid gap-4 sm:grid-cols-2">
+            {% for img in images %}
+                <div class="rounded-xl border {% if img.is_default %}border-brand-600{% else %}border-slate-200{% endif %} bg-white p-4">
+                    <div class="flex items-center justify-between gap-2">
+                        <p class="text-sm font-medium text-slate-900 truncate">{{ img.name }}</p>
+                        {% if img.is_default %}
+                            <span class="shrink-0 rounded-full bg-brand-50 px-2 py-0.5 text-xs text-brand-700 border border-brand-200">Predeterminada</span>
+                        {% endif %}
+                    </div>
+                    <div class="mt-3 flex h-28 items-center justify-center rounded-md"
+                         style="background:repeating-conic-gradient(#f1f5f9 0% 25%, #fff 0% 50%) 50%/16px 16px">
+                        <img src="{{ img.image.url }}" alt="{{ img.name }}" class="max-h-24 w-auto">
+                    </div>
+                    <div class="mt-3 flex gap-2">
+                        {% if not img.is_default %}
+                            <form method="post" action="{% url 'accounts:signature_image_default' img.pk %}">
+                                {% csrf_token %}
+                                <button type="submit" class="rounded-md border border-slate-300 px-3 py-1 text-xs hover:bg-slate-50">Hacer predeterminada</button>
+                            </form>
+                        {% endif %}
+                        {% if images|length > 1 %}
+                            <form method="post" action="{% url 'accounts:signature_image_delete' img.pk %}"
+                                  onsubmit="return confirm('¿Eliminar la firma «{{ img.name|escapejs }}»?')">
+                                {% csrf_token %}
+                                <button type="submit" class="rounded-md border border-red-200 px-3 py-1 text-xs text-red-700 hover:bg-red-50">Eliminar</button>
+                            </form>
+                        {% endif %}
+                    </div>
                 </div>
-            </div>
-            <div class="sm:col-span-2">
-                <dl class="divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
-                    <div class="flex justify-between px-4 py-3 text-sm">
-                        <dt class="text-slate-500">Nombre completo</dt><dd class="text-slate-900">{{ profile.full_name }}</dd>
-                    </div>
-                    <div class="flex justify-between px-4 py-3 text-sm">
-                        <dt class="text-slate-500">C.I. / Documento</dt><dd class="text-slate-900">{{ profile.id_document }}</dd>
-                    </div>
-                    <div class="flex justify-between px-4 py-3 text-sm">
-                        <dt class="text-slate-500">Correo</dt><dd class="text-slate-900">{{ profile.email }}</dd>
-                    </div>
-                    <div class="flex justify-between px-4 py-3 text-sm">
-                        <dt class="text-slate-500">Cargo</dt><dd class="text-slate-900">{{ profile.title|default:"—" }}</dd>
-                    </div>
-                    <div class="flex justify-between px-4 py-3 text-sm">
-                        <dt class="text-slate-500">Estado</dt>
-                        <dd>
-                            {% if profile.is_active %}
-                                <span class="rounded-full bg-emerald-50 px-2 py-0.5 text-xs text-emerald-700 border border-emerald-200">Activa</span>
-                            {% else %}
-                                <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500 border border-slate-200">Inactiva</span>
-                            {% endif %}
-                        </dd>
-                    </div>
-                </dl>
-            </div>
+            {% empty %}
+                <p class="text-sm text-slate-400 sm:col-span-2">Aún no tienes firmas guardadas.</p>
+            {% endfor %}
         </div>
+
+        <form method="post" action="{% url 'accounts:signature_image_add' %}" enctype="multipart/form-data"
+              class="mt-6 space-y-4 rounded-xl border border-slate-200 bg-white p-5">
+            {% csrf_token %}
+            <h3 class="text-sm font-semibold text-slate-900">Agregar firma</h3>
+            {% for field in image_form %}
+                {% if field.name == "is_default" %}
+                    <label class="flex items-center gap-2 text-sm text-slate-700">{{ field }} Usar como predeterminada</label>
+                {% else %}
+                    <div>
+                        <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-slate-700 mb-1">
+                            {{ field.label|capfirst }} <span class="text-red-500">*</span>
+                        </label>
+                        {{ field }}
+                        {% if field.help_text %}<p class="mt-1 text-xs text-slate-400">{{ field.help_text }}</p>{% endif %}
+                    </div>
+                {% endif %}
+                {% if field.errors %}<p class="text-sm text-red-600">{{ field.errors|join:" " }}</p>{% endif %}
+            {% endfor %}
+            <button type="submit"
+                    class="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700">Agregar firma</button>
+        </form>
     {% else %}
         <div class="mt-6 rounded-xl border border-dashed border-slate-300 bg-white p-8 text-center">
             <p class="text-slate-600">Aún no has configurado tu firma.</p>

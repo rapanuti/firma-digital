@@ -8,6 +8,7 @@ from django.http import FileResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.http import require_POST
 
+from accounts.models import SignatureImage
 from documents.models import Document
 
 from .models import AuditEvent, Signature
@@ -47,11 +48,24 @@ def sign_view(request, doc_id):
         messages.warning(request, "Primero ubica la firma en el documento.")
         return redirect("documents:place", pk=doc.pk)
 
+    profile = getattr(request.user, "signature_profile", None)
+    firmas = list(profile.images.all()) if profile else []
+
     if request.method == "POST":
+        image = None
+        image_id = request.POST.get("signature_image")
+        if image_id:
+            image = SignatureImage.objects.filter(
+                pk=image_id, profile__user=request.user
+            ).first()
+            if image is None:
+                messages.error(request, "La firma elegida no es válida.")
+                return redirect("signing:sign", doc_id=doc.pk)
         try:
             signature = sign_document(
                 doc,
                 request.user,
+                signature_image=image,
                 ip=_client_ip(request),
                 user_agent=request.META.get("HTTP_USER_AGENT", ""),
             )
@@ -61,8 +75,19 @@ def sign_view(request, doc_id):
         messages.success(request, "Documento firmado correctamente.")
         return redirect("signing:result", pk=signature.pk)
 
-    profile = getattr(request.user, "signature_profile", None)
-    return render(request, "signing/sign_confirm.html", {"documento": doc, "perfil": profile})
+    seleccionada = next(
+        (f for f in firmas if f.pk == doc.signature_image_id), None
+    ) or (profile.default_image if profile else None)
+    return render(
+        request,
+        "signing/sign_confirm.html",
+        {
+            "documento": doc,
+            "perfil": profile,
+            "firmas": firmas,
+            "firma_seleccionada": seleccionada,
+        },
+    )
 
 
 @login_required

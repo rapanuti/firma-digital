@@ -69,8 +69,14 @@ def _qr_content(mode, *, url, name, ci, fecha, code, original_sha256) -> str:
 
 
 @transaction.atomic
-def sign_document(document: Document, signer, *, ip=None, user_agent=""):
-    """Firma ``document`` por ``signer`` y devuelve la ``Signature`` creada."""
+def sign_document(
+    document: Document, signer, *, signature_image=None, ip=None, user_agent=""
+):
+    """Firma ``document`` por ``signer`` y devuelve la ``Signature`` creada.
+
+    ``signature_image`` es la imagen de firma a estampar; si no se indica se usa
+    la elegida al ubicar la firma o, en su defecto, la predeterminada del perfil.
+    """
     if document.status != Document.Status.PENDING:
         raise SigningError("El documento no está pendiente de firma.")
     if not document.has_placement:
@@ -79,6 +85,10 @@ def sign_document(document: Document, signer, *, ip=None, user_agent=""):
     profile = getattr(signer, "signature_profile", None)
     if not profile or not profile.can_sign:
         raise SigningError("Tu perfil de firma no está activo o no tiene imagen.")
+
+    image = signature_image or document.signature_image or profile.default_image
+    if image.profile_id != profile.pk:
+        raise SigningError("La firma elegida no pertenece a tu perfil.")
 
     signed_at = timezone.now()
 
@@ -104,9 +114,9 @@ def sign_document(document: Document, signer, *, ip=None, user_agent=""):
             document.placement_w,
             document.placement_h,
         )
-        profile.signature_image.open("rb")
-        signature_png = profile.signature_image.read()
-        profile.signature_image.close()
+        image.image.open("rb")
+        signature_png = image.image.read()
+        image.image.close()
 
         fecha = timezone.localtime(signed_at).strftime("%d/%m/%Y %H:%M")
         qr_content = _qr_content(
@@ -153,6 +163,7 @@ def sign_document(document: Document, signer, *, ip=None, user_agent=""):
         height=document.placement_h,
         page_rotation=document.placement_rotation,
         qr_mode=document.qr_mode,
+        signature_image=image,
         original_sha256=document.original_sha256,
         signed_sha256=signed_sha,
         verification_code=code,
@@ -180,6 +191,7 @@ def sign_document(document: Document, signer, *, ip=None, user_agent=""):
         signed_sha256=signature.signed_sha256,
         verification_code=code,
         status=signature.status,
+        metadata={"signature_image": image.name},
     )
     return signature
 
